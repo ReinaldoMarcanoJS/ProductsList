@@ -1,8 +1,8 @@
 import type { Metadata } from "next";
-import Login from "./login/page";
+import { redirect } from "next/navigation";
 
 export default function IndexPage() {
-  return <Login />;
+  redirect("/login");
 }
 
 export const metadata: Metadata = {

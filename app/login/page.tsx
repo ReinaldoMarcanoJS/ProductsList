@@ -1,7 +1,8 @@
 "use client";
 import { useState } from "react";
 import { useAppSelector, useAppDispatch } from "@/lib/hooks";
-import { permanentRedirect } from "next/navigation";
+import { permanentRedirect, redirect } from "next/navigation";
+import Link from "next/link";
 // import { login } from "@/lib/store/actions"; // Asegúrate de tener una acción de login en tu store
 
 function Login() {
@@ -20,12 +21,23 @@ function Login() {
   }
 
   return (
-    <div className="flex items-center justify-center min-h-screen bg-gray-100">
+    <div className="flex items-center justify-center min-h-screen">
       <div className="w-full max-w-md p-8 space-y-6 bg-white rounded shadow-md">
         <h1 className="text-2xl font-bold text-center">Login</h1>
+        <div className="text-center">
+          <p className="text-sm text-gray-600">
+            Welcome back! Please login to your account.
+          </p>
+          <Link href="/register" className="text-indigo-600 hover:underline">
+            Create an account
+          </Link>
+        </div>
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
-            <label htmlFor="username" className="block text-sm font-medium text-gray-700">
+            <label
+              htmlFor="username"
+              className="block text-sm font-medium text-gray-700"
+            >
               Username:
             </label>
             <input
@@ -37,7 +49,10 @@ function Login() {
             />
           </div>
           <div>
-            <label htmlFor="password" className="block text-sm font-medium text-gray-700">
+            <label
+              htmlFor="password"
+              className="block text-sm font-medium text-gray-700"
+            >
               Password:
             </label>
             <input
@@ -51,6 +66,7 @@ function Login() {
           <button
             type="submit"
             className="w-full px-4 py-2 font-medium text-white bg-indigo-600 rounded-md hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
+            onClick={() => redirect("/dashboard")}
           >
             Log in
           </button>
