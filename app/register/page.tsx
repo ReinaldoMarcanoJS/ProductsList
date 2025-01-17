@@ -1,13 +1,16 @@
 "use client";
-import { useState } from "react";
 import { useAppSelector, useAppDispatch } from "@/lib/hooks";
-import { permanentRedirect, redirect } from "next/navigation";
-import { ErrorMessage, Field, Form, Formik } from "formik";
+import { useRouter } from "next/navigation";
+import { ErrorMessage, Field, Form, Formik, FormikHelpers } from "formik";
 import * as Yup from "yup";
 import Link from "next/link";
-// import { login } from "@/lib/store/actions"; // Asegúrate de tener una acción de login en tu store
-interface userLoginTypes {
-  username: string;
+import { registerQuery } from "../api/authquerys";
+import { useToast } from "@/hooks/use-toast";
+import { log } from "console";
+import { ToastAction } from "@radix-ui/react-toast";
+
+interface userRegisterTypes {
+  name: string;
   email: string;
   password: string;
 }
@@ -25,19 +28,50 @@ const SignupSchema = Yup.object().shape({
 });
 
 function Register() {
+  const router = useRouter();
   const logged = useAppSelector((state) => state.app.logged);
-  if (logged) {
-    permanentRedirect("/dashboard");
-  }
-  const dispatch = useAppDispatch();
+  // if (logged) {
+  //   permanentRedirect("/dashboard");
+  // }
+  const { toast } = useToast();
 
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    // dispatch(login({ username, password }));
+  const handleSubmit = async (
+    values: userRegisterTypes,
+    actions: FormikHelpers<userRegisterTypes>
+  ) => {
+  
+    try {
+      const res = await registerQuery(
+        values.email,
+        values.password,
+        values.name
+      );
+      if (res.message == "error" && res.type) {
+        console.log(res.type);
+        console.log(res);
+
+        toast({
+          variant: "destructive",
+          title: res.message,
+          description: res.type,
+        })
+        return
+      }
+      toast({
+        variant: "default",
+        title: "Exitoso",
+        description: "Usuario creado con exito",
+      })
+      router.push("/login");
+    } catch (error) {
+      console.log(error);
+    }
+
+    actions.setSubmitting(false);
   };
 
-  const initialValues: userLoginTypes = {
-    username: "",
+  const initialValues: userRegisterTypes = {
+    name: "",
     password: "",
     email: "",
   };
@@ -55,35 +89,30 @@ function Register() {
           </Link>
         </div>
         <Formik
+          validationSchema={SignupSchema}
           initialValues={initialValues}
-          onSubmit={(values, actions) => {
-              
-              console.log({ values, actions });
-              alert(JSON.stringify(values, null, 2));
-              actions.setSubmitting(false);
-            }}
-            validationSchema={SignupSchema}
+          onSubmit={handleSubmit}
         >
           {() => (
             <Form className="space-y-4">
               <div>
                 <label
-                  htmlFor="username"
+                  htmlFor="name"
                   className="block text-sm font-medium text-gray-700"
                 >
                   Usuario:
                 </label>
                 <Field
                   type="text"
-                  id="username"
-                  name="username"
+                  id="name"
+                  name="name"
                   className="w-full px-3 py-2 mt-1 border rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
                 />
-                <ErrorMessage name="username" className="text-red-500" />
+                <ErrorMessage name="name" className="text-red-500" />
               </div>
               <div>
                 <label
-                  htmlFor="username"
+                  htmlFor="name"
                   className="block text-sm font-medium text-gray-700"
                 >
                   Email:

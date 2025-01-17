@@ -1,24 +1,61 @@
 "use client";
-import { useState } from "react";
 import { useAppSelector, useAppDispatch } from "@/lib/hooks";
 import { permanentRedirect, redirect } from "next/navigation";
+import { ErrorMessage, Field, Form, Formik, FormikHelpers } from "formik";
+import * as Yup from "yup";
 import Link from "next/link";
-// import { login } from "@/lib/store/actions"; // Asegúrate de tener una acción de login en tu store
+import { loginQuery, verifyToken } from "../api/authquerys";
+import {
+  changeLoggedParam,
+  changeUserParam,
+} from "@/lib/features/counter/appSlice";
 
+interface userLoginTypes {
+  email: string;
+  password: string;
+}
+
+const LoginSchema = Yup.object().shape({
+  email: Yup.string().email("Invalid email").required("Required"),
+  password: Yup.string()
+    .min(6, "Too Short!")
+    .max(70, "Too Long!")
+    .required("Required"),
+});
 function Login() {
-  const [username, setUsername] = useState("");
-  const [password, setPassword] = useState("");
   const logged = useAppSelector((state) => state.app.logged);
   const dispatch = useAppDispatch();
 
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    // dispatch(login({ username, password }));
+  const handleSubmit = async (values: userLoginTypes, actions: FormikHelpers<userLoginTypes>) => {
+    actions.setSubmitting(false);
+    try {
+      const res = await loginQuery(values.email, values.password);
+      if (res.message !== "ok") {
+        console.log(res.type);
+        return;
+      } else if (res.token) {
+        const tokenValidated = await verifyToken(res.token);
+        if (tokenValidated && res.user) {
+          dispatch(changeLoggedParam({ logged: true, token: res.token }));
+          dispatch(changeUserParam(res.user));
+          redirect("/dashboard");
+        }
+      }
+    } catch (error) {
+      console.log(error);
+    }
+
+    actions.setSubmitting(false);
   };
 
-  if (logged) {
-    permanentRedirect("/dashboard");
-  }
+  // if (logged) {
+  //   permanentRedirect("/dashboard");
+  // }
+
+  const initialValues: userLoginTypes = {
+    email: "",
+    password: "",
+  };
 
   return (
     <div className="flex items-center justify-center min-h-screen">
@@ -32,45 +69,51 @@ function Login() {
             Create an account
           </Link>
         </div>
-        <form onSubmit={handleSubmit} className="space-y-4">
-          <div>
-            <label
-              htmlFor="username"
-              className="block text-sm font-medium text-gray-700"
+        <Formik
+          validationSchema={LoginSchema}
+          initialValues={initialValues}
+          onSubmit={handleSubmit}
+        >
+          <Form className="space-y-4">
+            <div>
+              <label
+                htmlFor="email"
+                className="block text-sm font-medium text-gray-700"
+              >
+                Email:
+              </label>
+              <Field
+                type="email"
+                id="email"
+                name="email"
+                className="w-full px-3 py-2 mt-1 border rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
+              />
+              <ErrorMessage name="email" className="text-red-500" />
+            </div>
+
+            <div>
+              <label
+                htmlFor="password"
+                className="block text-sm font-medium text-gray-700"
+              >
+                Password:
+              </label>
+              <Field
+                type="password"
+                id="password"
+                name="password"
+                className="w-full px-3 py-2 mt-1 border rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
+              />
+              <ErrorMessage name="password" className="text-red-500" />
+            </div>
+            <button
+              type="submit"
+              className="w-full px-4 py-2 font-medium text-white bg-indigo-600 rounded-md hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
             >
-              Username:
-            </label>
-            <input
-              type="text"
-              id="username"
-              value={username}
-              onChange={(e) => setUsername(e.target.value)}
-              className="w-full px-3 py-2 mt-1 border rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
-            />
-          </div>
-        
-          <div>
-            <label
-              htmlFor="password"
-              className="block text-sm font-medium text-gray-700"
-            >
-              Password:
-            </label>
-            <input
-              type="password"
-              id="password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              className="w-full px-3 py-2 mt-1 border rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
-            />
-          </div>
-          <button
-            type="submit"
-            className="w-full px-4 py-2 font-medium text-white bg-indigo-600 rounded-md hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
-          >
-            Log in
-          </button>
-        </form>
+              Log in
+            </button>
+          </Form>
+        </Formik>
       </div>
     </div>
   );
