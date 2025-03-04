@@ -23,8 +23,8 @@ export const registerQuery = async (
 };
 
 export const loginQuery = async (
-  password: string,
-  email: string
+  email: string,
+  password: string
 ): Promise<UserRegisterQueryType> => {
   const response = await fetch("http://localhost:3001/api/auth/login", {
     method: "POST",
@@ -38,7 +38,7 @@ export const loginQuery = async (
 };
 
 export const verifyToken = async (token: string) => {
-  const response = await fetch("/api/auth/verifyToken", {
+  const response = await fetch("http://localhost:3001/api/auth/profile", {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
@@ -47,4 +47,16 @@ export const verifyToken = async (token: string) => {
   });
   const data = await response.json();
   return data;
+};
+
+
+export const logoutQuery = async (token: string) => {
+  const response = await fetch("http://localhost:3001/api/auth/logout", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({ token }),
+  });
+  return await response.json();
 };

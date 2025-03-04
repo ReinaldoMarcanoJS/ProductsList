@@ -12,14 +12,16 @@ import {
   TableRow,
 } from '@/components/ui/table'
 
+
 interface Product {
   id: string
-  code: string
-  description: string
+  name: string
   unit: string
-  price: number
+  code: number
+  price: number;
   quantity: number
 }
+
 
 interface InvoiceTableProps {
   products: Product[]
@@ -38,7 +40,7 @@ export default function InvoiceTable({
         <TableHeader>
           <TableRow>
             <TableHead>Código</TableHead>
-            <TableHead>Descripción</TableHead>
+            <TableHead>Name</TableHead>
             <TableHead>Unidad</TableHead>
             <TableHead>Cantidad</TableHead>
             <TableHead>Precio</TableHead>
@@ -50,7 +52,7 @@ export default function InvoiceTable({
           {products.map((product) => (
             <TableRow key={product.id}>
               <TableCell>{product.code}</TableCell>
-              <TableCell>{product.description}</TableCell>
+              <TableCell>{product.name}</TableCell>
               <TableCell>{product.unit}</TableCell>
               <TableCell>
                 <Input

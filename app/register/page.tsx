@@ -8,6 +8,7 @@ import { registerQuery } from "../api/authquerys";
 import { useToast } from "@/hooks/use-toast";
 import { log } from "console";
 import { ToastAction } from "@radix-ui/react-toast";
+import { RootState } from "@/lib/store";
 
 interface userRegisterTypes {
   name: string;
@@ -29,7 +30,7 @@ const SignupSchema = Yup.object().shape({
 
 function Register() {
   const router = useRouter();
-  const logged = useAppSelector((state) => state.app.logged);
+  const logged = useAppSelector((state) => state.app.logged.logged);
   // if (logged) {
   //   permanentRedirect("/dashboard");
   // }

@@ -14,8 +14,7 @@ import CustomerSearch from './CustomerSearch'
 
 interface Product {
   id: string
-  code: string
-  description: string
+  name: string
   unit: string
   price: number
   quantity: number

@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { Search } from 'lucide-react'
 import {
   Dialog,
@@ -17,13 +17,11 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table'
+import { createClientQuery, getClientsQuery } from '@/app/api/clients/clientsquery'
+import { Client } from '@/types'
 
 // Mock data - replace with your actual data source
-const mockCustomers = [
-  { id: '1', name: 'Juan Pérez', document: 'V-12345678' },
-  { id: '2', name: 'María García', document: 'V-87654321' },
-  { id: '3', name: 'Carlos López', document: 'V-23456789' },
-]
+
 
 interface CustomerSearchProps {
   open: boolean
@@ -33,10 +31,19 @@ interface CustomerSearchProps {
 
 export default function CustomerSearch({ open, onClose, onSelect }: CustomerSearchProps) {
   const [searchTerm, setSearchTerm] = useState('')
+  const [clients, setclients] = useState<Client[]>([])
 
-  const filteredCustomers = mockCustomers.filter(customer =>
+  useEffect(() => {
+      async function getProductList() {
+          const clients = await getClientsQuery();
+          setclients(clients);
+        }
+      getProductList();
+    }, []);
+
+  const filteredCustomers = clients.filter(customer =>
     customer.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    customer.document.toLowerCase().includes(searchTerm.toLowerCase())
+    customer.email.toLowerCase().includes(searchTerm.toLowerCase())
   )
 
   return (
@@ -62,17 +69,17 @@ export default function CustomerSearch({ open, onClose, onSelect }: CustomerSear
             </TableRow>
           </TableHeader>
           <TableBody>
-            {filteredCustomers.map((customer) => (
+            {filteredCustomers.map((client) => (
               <TableRow
-                key={customer.id}
+                key={client.id}
                 className="cursor-pointer hover:bg-muted"
                 onClick={() => {
-                  onSelect(customer)
+                  onSelect(client)
                   onClose()
                 }}
               >
-                <TableCell>{customer.document}</TableCell>
-                <TableCell>{customer.name}</TableCell>
+                <TableCell>{client.email}</TableCell>
+                <TableCell>{client.name}</TableCell>
               </TableRow>
             ))}
           </TableBody>

@@ -1,14 +1,13 @@
 "use client";
-import { useAppSelector, useAppDispatch } from "@/lib/hooks";
-import { permanentRedirect, redirect } from "next/navigation";
+import Cookies from "js-cookie";
+import { useRouter } from "next/navigation";
 import { ErrorMessage, Field, Form, Formik, FormikHelpers } from "formik";
 import * as Yup from "yup";
 import Link from "next/link";
 import { loginQuery, verifyToken } from "../api/authquerys";
-import {
-  changeLoggedParam,
-  changeUserParam,
-} from "@/lib/features/counter/appSlice";
+import { useToast } from "@/hooks/use-toast";
+import { useEffect } from "react";
+import { log } from "console";
 
 interface userLoginTypes {
   email: string;
@@ -23,22 +22,48 @@ const LoginSchema = Yup.object().shape({
     .required("Required"),
 });
 function Login() {
-  const logged = useAppSelector((state) => state.app.logged);
-  const dispatch = useAppDispatch();
+  const toast = useToast();
+  const router = useRouter();
 
-  const handleSubmit = async (values: userLoginTypes, actions: FormikHelpers<userLoginTypes>) => {
-    actions.setSubmitting(false);
+  useEffect(() => {}, []);
+  useEffect(() => {
+    const checkToken = async () => { 
+      const token = Cookies.get("token");
+      if (token) {
+        const tokenValidated = await verifyToken(token);
+        if (tokenValidated && tokenValidated.user) {
+          router.push("/dashboard");
+        }
+      }
+    };
+    checkToken();
+  }, [router]);
+  const handleSubmit = async (
+    values: userLoginTypes,
+    actions: FormikHelpers<userLoginTypes>
+  ) => {
+    const { email, password } = values;
+    console.log(email, password);
     try {
-      const res = await loginQuery(values.email, values.password);
-      if (res.message !== "ok") {
+      // toast.toast({
+      //   variant: "default",
+      //   title: email,
+      //   description: password,
+      // })
+      const res = await loginQuery(email, password);
+      console.log(await res);
+
+      if (res.message == "error") {
         console.log(res.type);
         return;
-      } else if (res.token) {
+      }
+      if (res.token) {
         const tokenValidated = await verifyToken(res.token);
-        if (tokenValidated && res.user) {
-          dispatch(changeLoggedParam({ logged: true, token: res.token }));
-          dispatch(changeUserParam(res.user));
-          redirect("/dashboard");
+        console.log(tokenValidated);
+
+        if (tokenValidated && tokenValidated.user) {
+            Cookies.set("token", res.token, { expires: 10 });
+          router.push(`/dashboard`);
         }
       }
     } catch (error) {
@@ -47,10 +72,6 @@ function Login() {
 
     actions.setSubmitting(false);
   };
-
-  // if (logged) {
-  //   permanentRedirect("/dashboard");
-  // }
 
   const initialValues: userLoginTypes = {
     email: "",
