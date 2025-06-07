@@ -7,7 +7,7 @@ interface TotalsSummaryProps {
       subtotal: number
       tax: number
       total: number
-    }
+    };
   }
   
   export default function TotalsSummary({ totals }: TotalsSummaryProps) {
@@ -27,6 +27,10 @@ interface TotalsSummaryProps {
 
     return (
       <div className="space-y-4">
+         <div className="flex justify-between items-center">
+          <span className="text-sm">Cliente:</span>
+          <span className="font-medium">algun cliente</span>
+        </div>
         <div className="flex justify-between items-center">
           <span className="text-sm">Total Gravable:</span>
           <span className="font-medium">${totals.subtotal.toFixed(2)}</span>

@@ -19,6 +19,8 @@ import {
 } from '@/components/ui/table'
 import { createClientQuery, getClientsQuery } from '@/app/api/clients/clientsquery'
 import { Client } from '@/types'
+import Cookies from 'js-cookie'
+import { useRouter } from 'next/navigation'
 
 // Mock data - replace with your actual data source
 
@@ -32,19 +34,34 @@ interface CustomerSearchProps {
 export default function CustomerSearch({ open, onClose, onSelect }: CustomerSearchProps) {
   const [searchTerm, setSearchTerm] = useState('')
   const [clients, setclients] = useState<Client[]>([])
+  const [clientSelected, setClientSelected] = useState<Client | undefined>(undefined)
+  const router = useRouter();
 
   useEffect(() => {
-      async function getProductList() {
-          const clients = await getClientsQuery();
-          setclients(clients);
-        }
-      getProductList();
-    }, []);
+    async function getProductList() {
+      const token = Cookies.get("token");
+      console.log("clientList" , token);
+      
+      if (!token) {
+        router.push("/login");
+      } else {
+        const clients = await getClientsQuery(token as string);
+        setclients(clients);
+        console.log(clients);
+        
+      }
+    }
+    getProductList();
+  }, []);
 
   const filteredCustomers = clients.filter(customer =>
-    customer.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    customer.email.toLowerCase().includes(searchTerm.toLowerCase())
+    customer.name.toLowerCase().includes(searchTerm.toLowerCase())
   )
+
+  const handleClientClick = (client: Client) => {
+    setClientSelected(client);
+    onClose(); // Close the dialog after selecting a client
+  };
 
   return (
     <Dialog open={open} onOpenChange={onClose}>
@@ -54,9 +71,10 @@ export default function CustomerSearch({ open, onClose, onSelect }: CustomerSear
         </DialogHeader>
         <div className="relative">
           <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-          <Input
+          <input
+            type="text"
             placeholder="Buscar por nombre o documento..."
-            className="pl-8"
+            className="pl-10 pr-4 py-2 w-full border rounded"
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
           />
@@ -64,28 +82,22 @@ export default function CustomerSearch({ open, onClose, onSelect }: CustomerSear
         <Table>
           <TableHeader>
             <TableRow>
-              <TableHead>Documento</TableHead>
+              <TableHead>Code</TableHead>
               <TableHead>Nombre</TableHead>
+              <TableHead>Telefono</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
-            {filteredCustomers.map((client) => (
-              <TableRow
-                key={client.id}
-                className="cursor-pointer hover:bg-muted"
-                onClick={() => {
-                  onSelect(client)
-                  onClose()
-                }}
-              >
-                <TableCell>{client.email}</TableCell>
-                <TableCell>{client.name}</TableCell>
+            {filteredCustomers.map((customer) => (
+              <TableRow key={customer.id} onClick={() => handleClientClick(customer)}>
+                <TableCell>{customer.code}</TableCell>
+                <TableCell>{customer.name}</TableCell>
+                <TableCell>{customer.phone}</TableCell>
               </TableRow>
             ))}
           </TableBody>
         </Table>
       </DialogContent>
     </Dialog>
-  )
-}
-
+  );
+};

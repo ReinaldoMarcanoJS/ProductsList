@@ -33,7 +33,9 @@ export type DolarQuery = {
 export type Client = {
     id?: string;
     name: string;
-    email: string;
-    created_at: string;
-    updated_at: string;
+    userId?: string; 
+    code: number;
+    phone?: string;
+    createdAt: Date;
+    updatedAt: Date;
 }

@@ -16,6 +16,7 @@ interface Product {
   id: string
   name: string
   unit: string
+  code: number
   price: number
   quantity: number
 }
@@ -28,6 +29,7 @@ interface Customer {
 
 export default function InvoiceSystem() {
   const [selectedProducts, setSelectedProducts] = useState<Product[]>([])
+  // const [selectedClient, setSelectedClient] = useState<ClientTypes | null>([])
   const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(null)
   const [isProductSearchOpen, setIsProductSearchOpen] = useState(false)
   const [isCustomerSearchOpen, setIsCustomerSearchOpen] = useState(false)

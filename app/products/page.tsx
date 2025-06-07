@@ -1,0 +1,299 @@
+"use client";
+
+import { useEffect, useState } from "react";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
+import { Input } from "@/components/ui/input";
+import { useRouter } from "next/navigation";
+import { Button } from "@/components/ui/button";
+import { Plus, Trash2, Pencil } from "lucide-react";
+import {
+  addProductQuery,
+  deleteProductQuery,
+  getProductsQuery,
+  updateProductQuery,
+} from "../api/products/productsquery";
+import { Client, Product } from "@/types";
+import { useToast } from "@/hooks/use-toast";
+import Cookies from "js-cookie";
+import Sidebar from "../components/Sidebar";
+import { log } from "console";
+
+const EXCHANGE_RATE = 35.5; // Tasa de cambio ficticia, deberías usar una API para obtener la tasa real
+
+export default function ProductList() {
+  const [products, setProducts] = useState<Product[]>([]);
+  const [isLoading, setIsLoading] = useState<boolean>(true); // Estado para controlar la carga
+  const [filteredProducts, setFilteredProducts] = useState<Product[]>([]);
+  const [newProduct, setNewProduct] = useState<Product>();
+  const [editingProduct, setEditingProduct] = useState<Product | null>(null);
+  const [searchTerm, setSearchTerm] = useState("");
+
+  const toast = useToast();
+  const router = useRouter();
+  useEffect(() => {
+    async function getProductList() {
+      setIsLoading(true); // Inicia el estado de carga
+
+      const token = Cookies.get("token");
+      try{
+        if (!token) {
+          router.push("/login");
+        } else {
+          const products = await getProductsQuery(token as string);
+          setProducts(products);
+        }
+      }catch(error){
+        console.error("Error fetching products:", error);
+      }finally{
+        setIsLoading(false); // Finaliza el estado de carga
+      } 
+    }
+    getProductList();
+  }, []);
+
+  const addProduct = async (product: Product) => {
+    const userId = Cookies.get("id_userLogged");
+    
+    const newProduct = {
+      ...product,
+      userId
+    };
+    if (newProduct && newProduct.name && newProduct.price) {
+      const res = await addProductQuery(newProduct);
+
+      if (res.message === "ok") {
+        const updatedProducts = await getProductsQuery(
+          Cookies.get("token") as string
+        );
+        setProducts(updatedProducts);
+        setNewProduct({
+          id: "",
+          name: "",
+          userId: "",
+          code: 0,
+          price: 0,
+          createdAt: new Date(),
+          updatedAt: new Date(),
+        });
+      } else {
+        toast.toast({
+          description: res.type,
+          title: res.message,
+        });
+      }
+    }
+  };
+
+  const deleteProduct = async (id: string) => {
+    try {
+      const deletedProduct = await deleteProductQuery(id);
+      console.log(deletedProduct);
+
+      if (deletedProduct.message === "ok") {
+        setProducts(products.filter((product) => product.id !== id));
+      }
+    } catch (error) {
+      console.log(error);
+    }
+  };
+
+  const updateProduct = async (
+    product: Product,
+    e: React.MouseEvent<HTMLButtonElement>
+  ) => {
+    try {
+      const updatedProduct = await updateProductQuery(product);
+      console.log(updatedProduct);
+      if (updatedProduct.message === "ok") {
+        setProducts(products.map((p) => (p.id === product.id ? product : p)));
+        setEditingProduct(null);
+      }
+    } catch (error) {
+      console.log(error);
+    }
+  };
+
+  const handleEditClick = (product: Product) => {
+    setEditingProduct(product);
+    setNewProduct(product);
+  };
+
+  const handleSaveClick = async (e: React.MouseEvent<HTMLButtonElement>) => {
+    if (newProduct) {
+      if (editingProduct) {
+        await updateProduct(newProduct, e);
+      } else {
+        await addProduct(newProduct);
+      }
+      setNewProduct({
+        id: "",
+        name: "",
+        userId: "",
+        code: 0,
+        price: 0,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      });
+    }
+  };
+
+  useEffect(() => {
+    const filteredProducts =
+      products.length > 0
+        ? products
+            .filter(
+              (product) =>
+                product.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                (product.id && product.id.toString().includes(searchTerm)) ||
+                product.code
+                  .toString()
+                  .toLowerCase()
+                  .includes(searchTerm.toLowerCase())
+            )
+            .sort((a, b) => a.code - b.code)
+        : [];
+
+    console.log(filteredProducts);
+    setFilteredProducts(filteredProducts);
+  }, [products, searchTerm]);
+
+  return (
+    <div className="flex w-full justify-start items-start mt-5">
+      <Sidebar/>
+      <div className="w-full p- flex flex-col gap-4 mt-4">
+
+      <div className="flex gap-4">
+        <Input
+          placeholder="Buscar productos..."
+          value={searchTerm}
+          onChange={(e) => setSearchTerm(e.target.value)}
+        />
+      </div>
+      <div className="flex gap-4">
+        <Input
+          placeholder="Nombre del producto"
+          value={newProduct?.name || ""}
+          onChange={(e) =>
+            setNewProduct({
+              ...newProduct,
+              name: e.target.value,
+              code: newProduct?.code || 0,
+              price: newProduct?.price || 0,
+              createdAt: newProduct?.createdAt || new Date(),
+              updatedAt: newProduct?.updatedAt || new Date(),
+            })
+          }
+        />
+        <Input
+          type="number"
+          placeholder="Precio (USD)"
+          value={newProduct?.price || 0}
+          onChange={(e) =>
+            setNewProduct({
+              ...newProduct,
+              price: parseFloat(e.target.value),
+              code: newProduct?.code || 0,
+              name: newProduct?.name || "",
+              createdAt: newProduct?.createdAt || new Date(),
+              updatedAt: newProduct?.updatedAt || new Date(),
+            })
+          }
+        />
+        <Button onClick={(e) => handleSaveClick(e)}>
+          <Plus className="mr-2 h-4 w-4" />{" "}
+          {editingProduct ? "Actualizar" : "Agregar"}
+        </Button>
+      </div>
+      <Table>
+        <TableHeader>
+          <TableRow>
+            <TableHead>Code</TableHead>
+            <TableHead>Nombre del Producto</TableHead>
+            <TableHead>Precio (USD)</TableHead>
+            <TableHead>Precio (BS)</TableHead>
+            <TableHead>Acciones</TableHead>
+          </TableRow>
+        </TableHeader>
+        <TableBody>
+          {  isLoading ? (
+            // Mostrar efectos de carga mientras se obtienen los datos
+            Array.from({ length: 5 }).map((_, index) => (
+              <TableRow
+              key={index}
+              className="animate-fade-in"
+                  style={{
+                    animationDelay: `${index * 0.1}s`,
+                    animationFillMode: "both",
+                  }}
+                >
+                <TableCell>
+                  <div className="h-10 w-16 bg-gray-300 animate-pulse rounded"></div>
+                </TableCell>
+                <TableCell>
+                  <div className="h-10 w-32 bg-gray-300 animate-pulse rounded"></div>
+                </TableCell>
+                <TableCell>
+                  <div className="h-10 w-24 bg-gray-300 animate-pulse rounded"></div>
+                </TableCell>
+                <TableCell>
+                  <div className="h-10 w-20 bg-gray-300 animate-pulse rounded"></div>
+                </TableCell>
+              </TableRow>
+            ))
+          ) : filteredProducts.length > 0 ? (
+            filteredProducts.map((product, index) => (
+              <TableRow
+              key={product.id}
+              className="animate-fade-in"
+                  style={{
+                    animationDelay: `${index * 0.1}s`,
+                    animationFillMode: "both",
+                  }}
+                >
+                <TableCell>{product.code}</TableCell>
+                <TableCell>{product.name}</TableCell>
+                <TableCell>${product.price.toFixed(2)}</TableCell>
+                <TableCell>
+                  Bs. {(product.price * EXCHANGE_RATE).toFixed(2)}
+                </TableCell>
+                <TableCell>
+                  <Button
+                    variant="destructive"
+                    size="sm"
+                    onClick={() =>
+                      product.id !== undefined && deleteProduct(product.id)
+                    }
+                  >
+                    <Trash2 className="h-4 w-4" />
+                  </Button>
+                  <Button
+                    variant="outline"
+                    className="mx-1"
+                    size="sm"
+                    onClick={() => handleEditClick(product)}
+                  >
+                    <Pencil className="h-4 w-4 " />
+                  </Button>
+                </TableCell>
+              </TableRow>
+            ))
+          ) : (
+            <TableRow>
+              <TableCell colSpan={5} className="text-center">
+                No hay productos todavía.
+              </TableCell>
+            </TableRow>
+          )}
+        </TableBody>
+      </Table>
+              </div>
+    </div>
+  );
+}
