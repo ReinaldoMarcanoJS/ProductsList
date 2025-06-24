@@ -2,6 +2,7 @@ import { get } from "http"
 import React, { useEffect } from "react"
 import Cookies from "js-cookie"
 import { DolarQuery } from "@/types"
+import { getDolarApi } from "../api/dolarCambio/page";
 interface TotalsSummaryProps {
     totals: {
       subtotal: number
@@ -13,10 +14,16 @@ interface TotalsSummaryProps {
   export default function TotalsSummary({ totals }: TotalsSummaryProps) {
     const [dolarBcv, setDolarBcv] = React.useState<null | DolarQuery>()
     useEffect(() => {
+       getDolarApi().then((data) => {
+            Cookies.set("dolar", JSON.stringify(data), { expires: 1 });
+            setDolarBcv(data);
+          });
       const dolarCookie = Cookies.get("dolar");
       if (dolarCookie) {
         try {
           const dolar: DolarQuery = JSON.parse(dolarCookie);
+          console.log(dolar);
+          
           setDolarBcv(dolar)
         } catch (error) {
           console.error("Error parsing dolar cookie:", error);
