@@ -22,7 +22,6 @@ interface Credit {
 
 export default function CreditList() {
   const [credits, setCredits] = useState<Credit[]>([
-    { id: 1, name: 'Juan Pérez', amount: 100, products: 'Producto A, Producto B' },
     { id: 2, name: 'María García', amount: 150, products: 'Producto C' },
   ])
   const [newCredit, setNewCredit] = useState({ name: '', amount: '', products: '' })
@@ -44,7 +43,8 @@ export default function CreditList() {
   }
 
   return (
-    <div className="space-y-4">
+    <div className="">
+      <h3 className="pl-10 text-2xl font-bold mb-6 text-gray-800">Créditos</h3>
       <div className="flex gap-4">
         <Input
           placeholder="Nombre del cliente"

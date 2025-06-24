@@ -3,10 +3,11 @@ import { useRouter } from "next/navigation";
 import { ErrorMessage, Field, Form, Formik, FormikHelpers } from "formik";
 import * as Yup from "yup";
 import Link from "next/link";
-import { registerQuery } from "../api/authquerys";
 import { useToast } from "@/hooks/use-toast";
-import { log } from "console";
-import { ToastAction } from "@radix-ui/react-toast";
+import { createClient } from "@/utils/supabase/client";
+import { signup } from "../login/actions";
+
+// Crea la instancia fuera del componente
 
 interface userRegisterTypes {
   name: string;
@@ -27,6 +28,8 @@ const SignupSchema = Yup.object().shape({
 });
 
 function Register() {
+
+  const supabase = createClient()
   const router = useRouter();
   const { toast } = useToast();
 
@@ -34,34 +37,38 @@ function Register() {
     values: userRegisterTypes,
     actions: FormikHelpers<userRegisterTypes>
   ) => {
-  
     try {
-      const res = await registerQuery(
-        values.email,
-        values.password,
-        values.name
-      );
-      if (res.message == "error" && res.type) {
-        console.log(res.type);
-        console.log(res);
+      const { error } = await supabase.auth.signUp({
+        email: values.email,
+        password: values.password,
+        options: {
+          data: { name: values.name }, // Guarda el nombre como metadata
+        },
+      });
 
+      if (error) {
         toast({
           variant: "destructive",
-          title: res.message,
-          description: res.type,
-        })
-        return
+          title: "Error",
+          description: error.message,
+        });
+        actions.setSubmitting(false);
+        return;
       }
+
       toast({
         variant: "default",
         title: "Exitoso",
-        description: "Usuario creado con exito",
-      })
+        description: "Usuario creado con éxito. Revisa tu correo para confirmar.",
+      });
       router.push("/login");
     } catch (error) {
-      console.log(error);
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: "Ocurrió un error al registrar el usuario.",
+      });
     }
-
     actions.setSubmitting(false);
   };
 

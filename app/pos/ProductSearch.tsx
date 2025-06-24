@@ -18,10 +18,10 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Product } from "@/types";
-import { getProductsQuery } from "@/app/api/products/productsquery";
 import { useRouter } from "next/navigation";
 import Cookies from "js-cookie";
-import { log } from "console";
+import { createClient } from "@/utils/supabase/client";
+
 interface ProductSearchProps {
   open: boolean;
   onClose: () => void;
@@ -36,25 +36,37 @@ export default function ProductSearch({
   const [searchTerm, setSearchTerm] = useState("");
   const [products, setProducts] = useState<Product[]>([]);
   const router = useRouter();
+  const supabase = createClient();
+
   useEffect(() => {
     async function getProductList() {
-      const token = Cookies.get("token");
-      if (!token) {
+      const userId = Cookies.get("user_id");
+      if (!userId) {
         router.push("/login");
-      } else {
-        const products = await getProductsQuery(token as string);
-        setProducts(products);
+        return;
+      }
+      try {
+        const { data, error } = await supabase
+          .from("products")
+          .select("*")
+          .eq("userId", userId);
+        if (error) throw error;
+        setProducts(data || []);
+      } catch (error) {
+        setProducts([]);
       }
     }
     getProductList();
   }, []);
 
-  const filteredProducts = products.filter(
-    (product) =>
-      product.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      (product.id && product.id.toString().includes(searchTerm)) ||
-      product.code.toString().toLowerCase().includes(searchTerm.toLowerCase())
-  ).sort((a, b) => a.code - b.code);
+  const filteredProducts = products
+    .filter(
+      (product) =>
+        product.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        (product.id && product.id.toString().includes(searchTerm)) ||
+        product.code.toString().toLowerCase().includes(searchTerm.toLowerCase())
+    )
+    .sort((a, b) => a.code - b.code);
 
   if (!Array.isArray(products)) {
     console.error("Expected an array of products");
@@ -87,7 +99,7 @@ export default function ProductSearch({
             </TableRow>
           </TableHeader>
           <TableBody>
-            {products ? (
+            {filteredProducts.length > 0 ? (
               filteredProducts.map((product) => (
                 <TableRow
                   key={product.id}

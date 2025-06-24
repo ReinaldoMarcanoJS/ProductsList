@@ -21,7 +21,8 @@ import { createClientQuery, getClientsQuery } from '@/app/api/clients/clientsque
 import { Client } from '@/types'
 import Cookies from 'js-cookie'
 import { useRouter } from 'next/navigation'
-
+import { toast } from "@/hooks/use-toast";
+import {createClient} from '@/utils/supabase/client'
 // Mock data - replace with your actual data source
 
 
@@ -36,22 +37,35 @@ export default function CustomerSearch({ open, onClose, onSelect }: CustomerSear
   const [clients, setclients] = useState<Client[]>([])
   const [clientSelected, setClientSelected] = useState<Client | undefined>(undefined)
   const router = useRouter();
+  const supabase = createClient();
+   const fetchSupabaseClients = async () => {
+        try {
+          // Obtener el userId de las cookies
+          const userId = document.cookie
+            .split("; ")
+            .find((row) => row.startsWith("user_id="))
+            ?.split("=")[1];
+  
+          const { data, error } = await supabase
+            .from("clients")
+            .select("*")
+            .eq("userId", userId);
+  
+          if (error) throw error;
+          setclients(data || []);
+        } catch (error) {
+          console.error("Error fetching clients from Supabase:", error);
+          toast({
+            variant: "destructive",
+            title: "Error",
+            description: "No se pudieron cargar los clientes desde Supabase.",
+          });
+        } 
+      };
 
   useEffect(() => {
-    async function getProductList() {
-      const token = Cookies.get("token");
-      console.log("clientList" , token);
       
-      if (!token) {
-        router.push("/login");
-      } else {
-        const clients = await getClientsQuery(token as string);
-        setclients(clients);
-        console.log(clients);
-        
-      }
-    }
-    getProductList();
+      fetchSupabaseClients()
   }, []);
 
   const filteredCustomers = clients.filter(customer =>
@@ -60,7 +74,10 @@ export default function CustomerSearch({ open, onClose, onSelect }: CustomerSear
 
   const handleClientClick = (client: Client) => {
     setClientSelected(client);
-    onClose(); // Close the dialog after selecting a client
+    // Guarda el cliente seleccionado en las cookies
+    Cookies.set('selected_client', JSON.stringify(client), { expires: 1 });
+    onSelect(client); // Notifica al componente padre
+    onClose(); // Cierra el diálogo después de seleccionar un cliente
   };
 
   return (

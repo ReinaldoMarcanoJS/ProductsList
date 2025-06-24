@@ -1,8 +1,13 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { DollarSign, Package, ShoppingCart } from "lucide-react";
+
 export default function StatsCards() {
   return (
-    <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+    <div>
+      <h3 className="pl-10 text-2xl font-bold mb-6 text-gray-800">Estadisticas</h3>
+
+    <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3 items-center">
+      
       <Card>
         <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
           <CardTitle className="text-sm font-medium">Ventas Totales</CardTitle>
@@ -37,6 +42,7 @@ export default function StatsCards() {
           <p className="text-xs text-muted-foreground">+19 productos nuevos</p>
         </CardContent>
       </Card>
+    </div>
     </div>
   );
 }

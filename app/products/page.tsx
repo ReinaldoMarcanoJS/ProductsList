@@ -13,23 +13,17 @@ import { Input } from "@/components/ui/input";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Plus, Trash2, Pencil } from "lucide-react";
-import {
-  addProductQuery,
-  deleteProductQuery,
-  getProductsQuery,
-  updateProductQuery,
-} from "../api/products/productsquery";
 import { Client, Product } from "@/types";
 import { useToast } from "@/hooks/use-toast";
 import Cookies from "js-cookie";
 import Sidebar from "../components/Sidebar";
-import { log } from "console";
+import { createClient } from "@/utils/supabase/client";
 
-const EXCHANGE_RATE = 35.5; // Tasa de cambio ficticia, deberías usar una API para obtener la tasa real
+const EXCHANGE_RATE = 35.5; // Tasa de cambio ficticia
 
 export default function ProductList() {
   const [products, setProducts] = useState<Product[]>([]);
-  const [isLoading, setIsLoading] = useState<boolean>(true); // Estado para controlar la carga
+  const [isLoading, setIsLoading] = useState<boolean>(true);
   const [filteredProducts, setFilteredProducts] = useState<Product[]>([]);
   const [newProduct, setNewProduct] = useState<Product>();
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
@@ -37,42 +31,74 @@ export default function ProductList() {
 
   const toast = useToast();
   const router = useRouter();
+  const supabase = createClient();
+
+  // Obtener productos de Supabase
   useEffect(() => {
     async function getProductList() {
-      setIsLoading(true); // Inicia el estado de carga
-
-      const token = Cookies.get("token");
-      try{
-        if (!token) {
-          router.push("/login");
-        } else {
-          const products = await getProductsQuery(token as string);
-          setProducts(products);
-        }
-      }catch(error){
+      setIsLoading(true);
+      const userId = Cookies.get("user_id");
+      if (!userId) {
+        router.push("/login");
+        return;
+      }
+      try {
+        const { data, error } = await supabase
+          .from("products")
+          .select("*")
+          .eq("userId", userId);
+        if (error) throw error;
+        setProducts(data || []);
+      } catch (error) {
         console.error("Error fetching products:", error);
-      }finally{
-        setIsLoading(false); // Finaliza el estado de carga
-      } 
+        toast.toast({
+          title: "Error",
+          description: "No se pudieron obtener los productos.",
+        });
+      } finally {
+        setIsLoading(false);
+      }
     }
     getProductList();
   }, []);
 
+  // Agregar producto a Supabase
   const addProduct = async (product: Product) => {
-    const userId = Cookies.get("id_userLogged");
-    
-    const newProduct = {
-      ...product,
-      userId
-    };
-    if (newProduct && newProduct.name && newProduct.price) {
-      const res = await addProductQuery(newProduct);
+    const userId = Cookies.get("user_id");
+    if (!userId) {
+      toast.toast({
+        title: "Error",
+        description: "No se encontró el usuario.",
+      });
+      return;
+    }
+      // Genera un ID numérico aleatorio de 8 dígitos
+    const generateRandomNumericId = () => Math.floor(10000000 + Math.random() * 90000000).toString();
+    // Encuentra el valor más cercano a 0 que no exista en los códigos actuales
+    const existingCodes = products.map(c => c.code);
+    let code = 1;
+    while (existingCodes.includes(code)) {
+      code++;
+    }
 
-      if (res.message === "ok") {
-        const updatedProducts = await getProductsQuery(
-          Cookies.get("token") as string
-        );
-        setProducts(updatedProducts);
+    const newProductData = {
+      ...product,
+      id: generateRandomNumericId(), // Genera un ID único
+      userId,
+      code: code,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    };
+    if (newProductData && newProductData.name && newProductData.price) {
+      try {
+        const { error } = await supabase.from("products").insert([newProductData]);
+        if (error) throw error;
+        // Refresca la lista
+        const { data } = await supabase
+          .from("products")
+          .select("*")
+          .eq("userId", userId);
+        setProducts(data || []);
         setNewProduct({
           id: "",
           name: "",
@@ -82,41 +108,62 @@ export default function ProductList() {
           createdAt: new Date(),
           updatedAt: new Date(),
         });
-      } else {
+      } catch (error) {
         toast.toast({
-          description: res.type,
-          title: res.message,
+          title: "Error",
+          description: "No se pudo agregar el producto.",
         });
       }
     }
   };
 
+  // Eliminar producto de Supabase
   const deleteProduct = async (id: string) => {
+    const userId = Cookies.get("user_id");
     try {
-      const deletedProduct = await deleteProductQuery(id);
-      console.log(deletedProduct);
-
-      if (deletedProduct.message === "ok") {
-        setProducts(products.filter((product) => product.id !== id));
-      }
+      const { error } = await supabase.from("products").delete().eq("id", id);
+      if (error) throw error;
+      // Refresca la lista
+      const { data } = await supabase
+        .from("products")
+        .select("*")
+        .eq("userId", userId);
+      setProducts(data || []);
     } catch (error) {
-      console.log(error);
+      toast.toast({
+        title: "Error",
+        description: "No se pudo eliminar el producto.",
+      });
     }
   };
 
+  // Actualizar producto en Supabase
   const updateProduct = async (
     product: Product,
     e: React.MouseEvent<HTMLButtonElement>
   ) => {
+    const userId = Cookies.get("user_id");
     try {
-      const updatedProduct = await updateProductQuery(product);
-      console.log(updatedProduct);
-      if (updatedProduct.message === "ok") {
-        setProducts(products.map((p) => (p.id === product.id ? product : p)));
-        setEditingProduct(null);
-      }
+      const { error } = await supabase
+        .from("products")
+        .update({
+          ...product,
+          updatedAt: new Date(),
+        })
+        .eq("id", product.id);
+      if (error) throw error;
+      // Refresca la lista
+      const { data } = await supabase
+        .from("products")
+        .select("*")
+        .eq("userId", userId);
+      setProducts(data || []);
+      setEditingProduct(null);
     } catch (error) {
-      console.log(error);
+      toast.toast({
+        title: "Error",
+        description: "No se pudo actualizar el producto.",
+      });
     }
   };
 
@@ -160,15 +207,11 @@ export default function ProductList() {
             .sort((a, b) => a.code - b.code)
         : [];
 
-    console.log(filteredProducts);
     setFilteredProducts(filteredProducts);
   }, [products, searchTerm]);
 
   return (
-    <div className="flex w-full justify-start items-start mt-5">
-      <Sidebar/>
-      <div className="w-full p- flex flex-col gap-4 mt-4">
-
+    <div className="w-full p- flex flex-col gap-4 mt-4">
       <div className="flex gap-4">
         <Input
           placeholder="Buscar productos..."
@@ -222,7 +265,7 @@ export default function ProductList() {
           </TableRow>
         </TableHeader>
         <TableBody>
-          {  isLoading ? (
+          {isLoading ? (
             // Mostrar efectos de carga mientras se obtienen los datos
             Array.from({ length: 5 }).map((_, index) => (
               <TableRow
@@ -293,7 +336,6 @@ export default function ProductList() {
           )}
         </TableBody>
       </Table>
-              </div>
     </div>
   );
 }

@@ -7,7 +7,7 @@ import Link from "next/link";
 import { loginQuery, verifyToken } from "../api/authquerys";
 import { useToast } from "@/hooks/use-toast";
 import { useEffect } from "react";
-import { log } from "console";
+import { createClient } from "@/utils/supabase/client";
 
 interface userLoginTypes {
   email: string;
@@ -22,17 +22,17 @@ const LoginSchema = Yup.object().shape({
     .required("Required"),
 });
 function Login() {
+  const supabase = createClient();
   const toast = useToast();
   const router = useRouter();
 
-  useEffect(() => {}, []);
   useEffect(() => {
-    const checkToken = async () => { 
+    const checkToken = async () => {
       const token = Cookies.get("token");
       if (token) {
         const tokenValidated = await verifyToken(token);
         if (tokenValidated && tokenValidated.user) {
-          router.push("/dashboard");
+          router.push("/stats");
         }
       }
     };
@@ -43,33 +43,37 @@ function Login() {
     actions: FormikHelpers<userLoginTypes>
   ) => {
     const { email, password } = values;
-    console.log(email, password);
+    console.log("Login values:", values);
+    
     try {
-      // toast.toast({
-      //   variant: "default",
-      //   title: email,
-      //   description: password,
-      // })
-      const res = await loginQuery(email, password);
-      console.log(await res);
+      const { data, error } = await supabase.auth.signInWithPassword({
+        email,
+        password,
+      });
 
-      if (res.message == "error") {
-        console.log(res.type);
+      if (error) {
+        toast.toast({
+          variant: "destructive",
+          title: "Error",
+          description: error.message,
+        });
+        actions.setSubmitting(false);
         return;
       }
-      if (res.token) {
-        const tokenValidated = await verifyToken(res.token);
-        console.log(tokenValidated);
 
-        if (tokenValidated && tokenValidated.user) {
-            Cookies.set("token", res.token, { expires: 10 });
-          router.push(`/dashboard`);
-        }
+      // Guardar token si lo necesitas
+      if (data.session?.access_token && data.user?.id) {
+        Cookies.set("token", data.session.access_token, { expires: 10 });
+        Cookies.set("user_id", data.user.id, { expires: 10 });
+        router.push(`/stats`);
       }
     } catch (error) {
-      console.log(error);
+      toast.toast({
+        variant: "destructive",
+        title: "Error",
+        description: "Ocurrió un error al iniciar sesión.",
+      });
     }
-
     actions.setSubmitting(false);
   };
 
