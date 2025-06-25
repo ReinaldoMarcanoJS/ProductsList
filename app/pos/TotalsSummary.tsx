@@ -2,7 +2,8 @@ import { get } from "http"
 import React, { useEffect } from "react"
 import Cookies from "js-cookie"
 import { DolarQuery } from "@/types"
-import { getDolarApi } from "../api/dolarCambio/page";
+
+// import { getDolarApi } from "@/lib/getDolarApi";
 interface TotalsSummaryProps {
     totals: {
       subtotal: number
@@ -14,21 +15,20 @@ interface TotalsSummaryProps {
   export default function TotalsSummary({ totals }: TotalsSummaryProps) {
     const [dolarBcv, setDolarBcv] = React.useState<null | DolarQuery>()
     useEffect(() => {
-       getDolarApi().then((data) => {
-            Cookies.set("dolar", JSON.stringify(data), { expires: 1 });
-            setDolarBcv(data);
-          });
-      const dolarCookie = Cookies.get("dolar");
-      if (dolarCookie) {
-        try {
-          const dolar: DolarQuery = JSON.parse(dolarCookie);
-          console.log(dolar);
-          
-          setDolarBcv(dolar)
-        } catch (error) {
-          console.error("Error parsing dolar cookie:", error);
-        }
-      }
+            fetch("https://ve.dolarapi.com/v1/dolares/oficial")
+              .then((res) => res.json())
+              .then((data) => {
+                // Suponiendo que quieres el promedio del BCV
+                
+              setDolarBcv(data);
+              console.log(data);
+              
+              Cookies.set("dolar", JSON.stringify(data), { expires: 1 });
+                
+              })
+              .catch((error) => {
+                console.error("Error fetching dolar data:", error);
+              });
     }, []);
 
 

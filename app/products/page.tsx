@@ -28,7 +28,7 @@ export default function ProductList() {
   const [newProduct, setNewProduct] = useState<Product>();
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
   const [searchTerm, setSearchTerm] = useState("");
-
+  
   const toast = useToast();
   const router = useRouter();
   const supabase = createClient();

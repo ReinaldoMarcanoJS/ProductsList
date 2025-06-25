@@ -1,21 +1,21 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { useRouter, usePathname } from "next/navigation";
 
 const Sidebar = () => {
   const [activeTab, setActiveTab] = useState<string>("");
   const [loading, setLoading] = useState<boolean>(false);
-  const router = useRouter();
   const pathname = usePathname();
+  const myRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     setActiveTab(pathname);
     setLoading(false); // Oculta el cargando cuando cambia la ruta
   }, [pathname]);
 
-  const handleLinkClick = (href: string) => (e: React.MouseEvent) => {
+  const handleLinkClick = (href: string) => () => {
     if (href !== activeTab) {
       setLoading(true);
       setActiveTab(href);
@@ -23,7 +23,7 @@ const Sidebar = () => {
   };
 
   return (
-    <div className="w-64 h-screen flex flex-col bg-white font-sans">
+    <div ref={myRef} className="w-64 h-screen flex flex-col bg-white font-sans">
       <div className="p-4 text-lg font-bold">
         Panel de Control
       </div>
