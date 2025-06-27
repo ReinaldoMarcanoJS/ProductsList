@@ -5,9 +5,6 @@ import * as Yup from "yup";
 import Link from "next/link";
 import { useToast } from "@/hooks/use-toast";
 import { createClient } from "@/utils/supabase/client";
-import { signup } from "../login/actions";
-
-// Crea la instancia fuera del componente
 
 interface userRegisterTypes {
   name: string;
@@ -17,19 +14,18 @@ interface userRegisterTypes {
 
 const SignupSchema = Yup.object().shape({
   name: Yup.string()
-    .min(2, "Too Short!")
-    .max(70, "Too Long!")
-    .required("Required"),
-  email: Yup.string().email("Invalid email").required("Required"),
+    .min(2, "Muy corto")
+    .max(70, "Muy largo")
+    .required("Requerido"),
+  email: Yup.string().email("Correo inválido").required("Requerido"),
   password: Yup.string()
-    .min(6, "Too Short!")
-    .max(70, "Too Long!")
-    .required("Required"),
+    .min(6, "Mínimo 6 caracteres")
+    .max(70, "Muy largo")
+    .required("Requerido"),
 });
 
 function Register() {
-
-  const supabase = createClient()
+  const supabase = createClient();
   const router = useRouter();
   const { toast } = useToast();
 
@@ -42,7 +38,7 @@ function Register() {
         email: values.email,
         password: values.password,
         options: {
-          data: { name: values.name }, // Guarda el nombre como metadata
+          data: { name: values.name },
         },
       });
 
@@ -58,8 +54,9 @@ function Register() {
 
       toast({
         variant: "default",
-        title: "Exitoso",
-        description: "Usuario creado con éxito. Revisa tu correo para confirmar.",
+        title: "¡Registro exitoso!",
+        description:
+          "Usuario creado correctamente. Revisa tu correo para confirmar tu cuenta.",
       });
       router.push("/login");
     } catch (error) {
@@ -79,15 +76,17 @@ function Register() {
   };
 
   return (
-    <div className="flex items-center justify-center min-h-screen">
-      <div className="w-full max-w-md p-8 space-y-6 bg-white rounded shadow-md">
-        <h1 className="text-2xl font-bold text-center">Registrate</h1>
-        <div className="text-center">
-          <p className="text-sm text-gray-600">
-            bienvenido/a ! Crea tu cuenta!.
+    <div className="flex items-center justify-center min-h-screen bg-gray-50">
+      <div className="w-full max-w-md p-8 space-y-6 bg-white rounded-lg shadow">
+        <h1 className="text-3xl font-bold text-center text-indigo-700 mb-2">
+          Crear cuenta
+        </h1>
+        <div className="text-center mb-4">
+          <p className="text-sm text-gray-600 mb-2">
+            ¡Bienvenido/a! Crea tu cuenta para comenzar.
           </p>
           <Link href="/login" className="text-indigo-600 hover:underline">
-            Iniciar sesión
+            ¿Ya tienes cuenta? Inicia sesión
           </Link>
         </div>
         <Formik
@@ -102,51 +101,66 @@ function Register() {
                   htmlFor="name"
                   className="block text-sm font-medium text-gray-700"
                 >
-                  Usuario:
+                  Nombre de usuario
                 </label>
                 <Field
                   type="text"
                   id="name"
                   name="name"
-                  className="w-full px-3 py-2 mt-1 border rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
+                  placeholder="Tu nombre"
+                  className="w-full px-3 py-2 mt-1 border rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-indigo-400"
                 />
-                <ErrorMessage name="name" className="text-red-500" />
+                <ErrorMessage
+                  name="name"
+                  component="div"
+                  className="text-red-500 text-xs mt-1"
+                />
               </div>
               <div>
                 <label
-                  htmlFor="name"
+                  htmlFor="email"
                   className="block text-sm font-medium text-gray-700"
                 >
-                  Email:
+                  Correo electrónico
                 </label>
                 <Field
                   type="email"
                   id="email"
                   name="email"
-                  className="w-full px-3 py-2 mt-1 border rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
+                  placeholder="correo@ejemplo.com"
+                  className="w-full px-3 py-2 mt-1 border rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-indigo-400"
                 />
-                <ErrorMessage name="email" className="text-red-500" />
+                <ErrorMessage
+                  name="email"
+                  component="div"
+                  className="text-red-500 text-xs mt-1"
+                />
               </div>
               <div>
                 <label
                   htmlFor="password"
                   className="block text-sm font-medium text-gray-700"
                 >
-                  Contrasena:
+                  Contraseña
                 </label>
                 <Field
                   type="password"
                   id="password"
                   name="password"
-                  className="w-full px-3 py-2 mt-1 border rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
+                  placeholder="Mínimo 6 caracteres"
+                  className="w-full px-3 py-2 mt-1 border rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-indigo-400"
                 />
-                <ErrorMessage name="password" className="text-red-500" />
+                <ErrorMessage
+                  name="password"
+                  component="div"
+                  className="text-red-500 text-xs mt-1"
+                />
               </div>
               <button
                 type="submit"
-                className="w-full px-4 py-2 font-medium text-white bg-indigo-600 rounded-md hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
+                className="w-full px-4 py-2 font-semibold text-white bg-indigo-600 rounded-md hover:bg-indigo-700 transition focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
               >
-                Log in
+                Registrarme
               </button>
             </Form>
           )}

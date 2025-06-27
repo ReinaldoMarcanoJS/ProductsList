@@ -44,7 +44,7 @@ export default function CreditList() {
 
   return (
     <div className="">
-      <h3 className="pl-10 text-2xl font-bold mb-6 text-gray-800">Créditos</h3>
+      <h3 className="pl-10 pt-6 text-2xl font-bold mb-6 text-gray-800">Créditos</h3>
       <div className="flex gap-4">
         <Input
           placeholder="Nombre del cliente"

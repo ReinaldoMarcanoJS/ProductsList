@@ -9,7 +9,7 @@ import { Card } from '@/components/ui/card'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import ProductSearch from './ProductSearch'
 import InvoiceTable from './InvoiceTable'
-import TotalsSummary from './TotalsSummary'
+import TotalsSummary from '../products/TotalsSummary'
 import CustomerSearch from './CustomerSearch'
 import Sidebar from '@/app/components/Sidebar'
 
@@ -34,6 +34,7 @@ export default function InvoiceSystem() {
   const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(null)
   const [isProductSearchOpen, setIsProductSearchOpen] = useState(false)
   const [isCustomerSearchOpen, setIsCustomerSearchOpen] = useState(false)
+  const [showInvoice, setShowInvoice] = useState(false);
 
   const addProduct = (product: Product) => {
     const existingProduct = selectedProducts.find(p => p.id === product.id)
@@ -69,12 +70,12 @@ export default function InvoiceSystem() {
   }
 
   return (
-    <div className="flex justify-center items-center max-w-[1800px] ">
+    <div className="flex justify-center items-center max-w-[1800px] mt-6 ">
       <div className="flex flex-col h-full w-full  ">
         <div className="flex items-center justify-between mb-4">
           <div className="flex items-center gap-4">
             <Package2 className="h-6 w-6" />
-            <h2 className="text-xl font-semibold">Sistema de Facturación</h2>
+            <h2 className="text-2xl font-bold">Sistema de Facturación</h2>
           </div>
           <div className="flex items-center gap-2">
             <span className="text-sm text-muted-foreground">
@@ -94,8 +95,15 @@ export default function InvoiceSystem() {
                   <div className="flex-1">
                     <Input
                       placeholder="Cliente"
+                      disabled={!!selectedCustomer}
                       value={selectedCustomer?.name || ''}
-                      readOnly
+                      onChange={e => {
+                        if (selectedCustomer) {
+                          setSelectedCustomer({ ...selectedCustomer, name: e.target.value })
+                        } else {
+                          setSelectedCustomer({ id: '', name: e.target.value, document: '' })
+                        }
+                      }}
                     />
                   </div>
                   <Button
@@ -135,20 +143,20 @@ export default function InvoiceSystem() {
 
           {/* Right Side - Totals */}
           <div className="w-80 bg-white border-l p-4 overflow-auto">
-            <TotalsSummary totals={calculateTotals()} />
+            <TotalsSummary totals={calculateTotals()} customer={selectedCustomer} />
             <div className="mt-4">
-              <Select defaultValue="USD">
+              <Select defaultValue="Pago">
                 <SelectTrigger>
-                  <SelectValue placeholder="Seleccionar Moneda" />
+                  <SelectValue placeholder="Pago" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="USD">Dólares ($)</SelectItem>
-                  <SelectItem value="BS">Bolívares (Bs.)</SelectItem>
+                  <SelectItem value="Contado">Pago</SelectItem>
+                  <SelectItem value="BS">Credito</SelectItem>
                 </SelectContent>
               </Select>
             </div>
             <div className="mt-4">
-              <Button className="w-full">
+              <Button className="w-full" onClick={() => setShowInvoice(true)}>
                 Procesar Venta
               </Button>
             </div>
@@ -168,6 +176,71 @@ export default function InvoiceSystem() {
           onClose={() => setIsCustomerSearchOpen(false)}
           onSelect={setSelectedCustomer}
         />
+
+        {/* Invoice Preview Modal */}
+        {showInvoice && (
+          <div className="fixed inset-0 bg-black bg-opacity-40 flex items-center justify-center z-50">
+            <div className="bg-white rounded-lg shadow-lg p-8 w-full max-w-lg">
+              <h2 className="text-xl font-bold mb-4 text-indigo-700">Factura Virtual</h2>
+              <div className="mb-2">
+                <span className="font-semibold">Cliente: </span>
+                {selectedCustomer?.name || "No seleccionado"}
+              </div>
+              <table className="w-full text-sm mb-4">
+                <thead>
+                  <tr className="border-b">
+                    <th className="text-left py-1">Producto</th>
+                    <th className="text-center py-1">Cantidad</th>
+                    <th className="text-right py-1">Precio</th>
+                    <th className="text-right py-1">Total</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {selectedProducts.map((p) => (
+                    <tr key={p.id}>
+                      <td className="py-1">{p.name}</td>
+                      <td className="text-center py-1">{p.quantity}</td>
+                      <td className="text-right py-1">${p.price.toFixed(2)}</td>
+                      <td className="text-right py-1">${(p.price * p.quantity).toFixed(2)}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+              <div className="flex justify-between border-t pt-2 font-semibold">
+                <span>Subtotal:</span>
+                <span>
+                  $
+                  {selectedProducts
+                    .reduce((sum, p) => sum + p.price * p.quantity, 0)
+                    .toFixed(2)}
+                </span>
+              </div>
+              <div className="flex justify-between">
+                <span>IVA (16%):</span>
+                <span>
+                  $
+                  {(
+                    selectedProducts.reduce((sum, p) => sum + p.price * p.quantity, 0) *
+                    0.16
+                  ).toFixed(2)}
+                </span>
+              </div>
+              <div className="flex justify-between text-lg font-bold">
+                <span>Total:</span>
+                <span>
+                  $
+                  {(
+                    selectedProducts.reduce((sum, p) => sum + p.price * p.quantity, 0) *
+                      1.16
+                  ).toFixed(2)}
+                </span>
+              </div>
+              <div className="flex justify-end mt-6">
+                <Button onClick={() => setShowInvoice(false)}>Cerrar</Button>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   )

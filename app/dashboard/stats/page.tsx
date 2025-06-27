@@ -4,7 +4,7 @@ import { DollarSign, Package, ShoppingCart } from "lucide-react";
 export default function StatsCards() {
   return (
     <div>
-      <h3 className="pl-10 text-2xl font-bold mb-6 text-gray-800">Estadisticas</h3>
+      <h3 className="pl-10 pt-6 text-2xl font-bold mb-4 text-gray-800">Estadisticas</h3>
 
     <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3 items-center">
       

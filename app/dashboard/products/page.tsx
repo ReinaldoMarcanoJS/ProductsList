@@ -13,10 +13,10 @@ import { Input } from "@/components/ui/input";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Plus, Trash2, Pencil } from "lucide-react";
-import { Client, Product } from "@/types";
+import { Client, DolarQuery, Product } from "@/types";
 import { useToast } from "@/hooks/use-toast";
 import Cookies from "js-cookie";
-import Sidebar from "../components/Sidebar";
+import Sidebar from "../../components/Sidebar";
 import { createClient } from "@/utils/supabase/client";
 
 const EXCHANGE_RATE = 35.5; // Tasa de cambio ficticia
@@ -28,13 +28,37 @@ export default function ProductList() {
   const [newProduct, setNewProduct] = useState<Product>();
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
   const [searchTerm, setSearchTerm] = useState("");
+  const [dolarBcv, setDolarBcv] = useState<DolarQuery | null>(null);
   
   const toast = useToast();
   const router = useRouter();
   const supabase = createClient();
 
+  // Estado para saber si se está borrando un producto
+  const [deletingId, setDeletingId] = useState<string | null>(null);
+
   // Obtener productos de Supabase
   useEffect(() => {
+
+     try {
+                const dolarCookie = Cookies.get("dolar");
+                if (dolarCookie) {
+                  const dolarData: DolarQuery = JSON.parse(dolarCookie);
+                  setDolarBcv(dolarData);
+                } else {
+                  fetch("https://ve.dolarapi.com/v1/dolares/oficial")
+                    .then((res) => res.json())
+                    .then((data) => {
+                      setDolarBcv(data);
+                      Cookies.set("dolar", JSON.stringify(data), { expires: 1 });
+                    })
+                    .catch((error) => {
+                      console.error("Error fetching dolar data:", error);
+                    });
+                }
+              } catch (error) {
+                console.error("Error in useEffect:", error);
+              }
     async function getProductList() {
       setIsLoading(true);
       const userId = Cookies.get("user_id");
@@ -119,6 +143,7 @@ export default function ProductList() {
 
   // Eliminar producto de Supabase
   const deleteProduct = async (id: string) => {
+    setDeletingId(id); // Mostrar "Borrando..." en la fila
     const userId = Cookies.get("user_id");
     try {
       const { error } = await supabase.from("products").delete().eq("id", id);
@@ -134,6 +159,8 @@ export default function ProductList() {
         title: "Error",
         description: "No se pudo eliminar el producto.",
       });
+    } finally {
+      setDeletingId(null); // Oculta "Borrando..." al terminar
     }
   };
 
@@ -211,7 +238,9 @@ export default function ProductList() {
   }, [products, searchTerm]);
 
   return (
-    <div className="w-full p- flex flex-col gap-4 mt-4">
+    <div className="w-full flex flex-col gap-4 mt-4">
+      <h3 className="pl-10 pt-2 text-2xl font-bold mb-2 text-gray-800">Productos</h3>
+
       <div className="flex gap-4">
         <Input
           placeholder="Buscar productos..."
@@ -224,30 +253,57 @@ export default function ProductList() {
           placeholder="Nombre del producto"
           value={newProduct?.name || ""}
           onChange={(e) =>
-            setNewProduct({
-              ...newProduct,
-              name: e.target.value,
-              code: newProduct?.code || 0,
-              price: newProduct?.price || 0,
-              createdAt: newProduct?.createdAt || new Date(),
-              updatedAt: newProduct?.updatedAt || new Date(),
-            })
+        setNewProduct({
+          ...newProduct,
+          name: e.target.value,
+          code: newProduct?.code || 0,
+          price: newProduct?.price || 0,
+          createdAt: newProduct?.createdAt || new Date(),
+          updatedAt: newProduct?.updatedAt || new Date(),
+        })
           }
         />
         <Input
           type="number"
           placeholder="Precio (USD)"
-          value={newProduct?.price || 0}
-          onChange={(e) =>
-            setNewProduct({
-              ...newProduct,
-              price: parseFloat(e.target.value),
-              code: newProduct?.code || 0,
-              name: newProduct?.name || "",
-              createdAt: newProduct?.createdAt || new Date(),
-              updatedAt: newProduct?.updatedAt || new Date(),
-            })
+          value={
+        newProduct?.price !== undefined &&
+        newProduct?.price !== null &&
+        newProduct?.price !== 0
+          ? newProduct.price
+          : ""
           }
+          min={0}
+          max={999.99}
+          step={0.01}
+          onChange={(e) => {
+        let value = e.target.value;
+        // Limita a 3 enteros y 2 decimales
+        if (value.match(/^\d{0,3}(\.\d{0,2})?$/)) {
+          setNewProduct({
+            ...newProduct,
+            price: value === "" ? 0 : parseFloat(value),
+            code: newProduct?.code || 0,
+            name: newProduct?.name || "",
+            createdAt: newProduct?.createdAt || new Date(),
+            updatedAt: newProduct?.updatedAt || new Date(),
+          });
+        }
+          }}
+          onBlur={(e) => {
+        // Corrige el valor si es mayor a 999.99
+        let value = parseFloat(e.target.value);
+        if (value > 999.99) {
+          setNewProduct({
+            ...newProduct,
+            price: 999.99,
+            code: newProduct?.code || 0,
+            name: newProduct?.name || "",
+            createdAt: newProduct?.createdAt || new Date(),
+            updatedAt: newProduct?.updatedAt || new Date(),
+          });
+        }
+          }}
         />
         <Button onClick={(e) => handleSaveClick(e)}>
           <Plus className="mr-2 h-4 w-4" />{" "}
@@ -269,13 +325,13 @@ export default function ProductList() {
             // Mostrar efectos de carga mientras se obtienen los datos
             Array.from({ length: 5 }).map((_, index) => (
               <TableRow
-              key={index}
-              className="animate-fade-in"
-                  style={{
-                    animationDelay: `${index * 0.1}s`,
-                    animationFillMode: "both",
-                  }}
-                >
+                key={index}
+                className="animate-fade-in"
+                style={{
+                  animationDelay: `${index * 0.1}s`,
+                  animationFillMode: "both",
+                }}
+              >
                 <TableCell>
                   <div className="h-10 w-16 bg-gray-300 animate-pulse rounded"></div>
                 </TableCell>
@@ -293,38 +349,50 @@ export default function ProductList() {
           ) : filteredProducts.length > 0 ? (
             filteredProducts.map((product, index) => (
               <TableRow
-              key={product.id}
-              className="animate-fade-in"
-                  style={{
-                    animationDelay: `${index * 0.1}s`,
-                    animationFillMode: "both",
-                  }}
-                >
-                <TableCell>{product.code}</TableCell>
-                <TableCell>{product.name}</TableCell>
-                <TableCell>${product.price.toFixed(2)}</TableCell>
-                <TableCell>
-                  Bs. {(product.price * EXCHANGE_RATE).toFixed(2)}
-                </TableCell>
-                <TableCell>
-                  <Button
-                    variant="destructive"
-                    size="sm"
-                    onClick={() =>
-                      product.id !== undefined && deleteProduct(product.id)
-                    }
-                  >
-                    <Trash2 className="h-4 w-4" />
-                  </Button>
-                  <Button
-                    variant="outline"
-                    className="mx-1"
-                    size="sm"
-                    onClick={() => handleEditClick(product)}
-                  >
-                    <Pencil className="h-4 w-4 " />
-                  </Button>
-                </TableCell>
+                key={product.id}
+                className="animate-fade-in"
+                style={{
+                  animationDelay: `${index * 0.1}s`,
+                  animationFillMode: "both",
+                }}
+              >
+                {deletingId === product.id ? (
+                  <>
+                    <TableCell colSpan={5} className="text-center text-indigo-700 font-semibold animate-pulse">
+                      Borrando...
+                    </TableCell>
+                  </>
+                ) : (
+                  <>
+                    <TableCell>{product.code}</TableCell>
+                    <TableCell>{product.name}</TableCell>
+                    <TableCell>${product.price.toFixed(2)}</TableCell>
+                    <TableCell>
+                      Bs. {Math.ceil((product.price * (dolarBcv?.promedio ?? EXCHANGE_RATE)) / 5) * 5}
+                    </TableCell>
+                    <TableCell>
+                      <Button
+                        variant="destructive"
+                        size="sm"
+                        onClick={() =>
+                          product.id !== undefined && deleteProduct(product.id)
+                        }
+                        disabled={!!deletingId}
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                      <Button
+                        variant="outline"
+                        className="mx-1"
+                        size="sm"
+                        onClick={() => handleEditClick(product)}
+                        disabled={!!deletingId}
+                      >
+                        <Pencil className="h-4 w-4 " />
+                      </Button>
+                    </TableCell>
+                  </>
+                )}
               </TableRow>
             ))
           ) : (
