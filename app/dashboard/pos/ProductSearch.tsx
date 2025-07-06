@@ -85,54 +85,58 @@ export default function ProductSearch({
 
   return (
     <Dialog open={open} onOpenChange={onClose}>
-      <DialogContent>
+      <DialogContent className="max-w-4xl max-h-[80vh] flex flex-col">
         <DialogHeader>
-          <DialogTitle>Search Products</DialogTitle>
+          <DialogTitle>Buscar Productos</DialogTitle>
         </DialogHeader>
         {open && (
-          <div className="relative">
+          <div className="relative mb-4">
             <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
             <Input
-              placeholder="Search by code or description..."
+              placeholder="Buscar por código o descripción..."
               className="pl-8"
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
             />
           </div>
         )}
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>Code</TableHead>
-              <TableHead>Unit</TableHead>
-              <TableHead>Price</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {filteredProducts.length > 0 ? (
-              filteredProducts.map((product) => (
-                <TableRow
-                  key={product.id}
-                  className="cursor-pointer hover:bg-muted"
-                  onClick={() => {
-                    onSelect({ ...product, quantity: 1 });
-                    onClose();
-                  }}
-                >
-                  <TableCell>{product.code}</TableCell>
-                  <TableCell>{product.name}</TableCell>
-                  <TableCell>${product.price.toFixed(2)}</TableCell>
+        <div className="flex-1 overflow-hidden">
+          <div className="overflow-y-auto max-h-[60vh] border rounded">
+            <Table>
+              <TableHeader className="sticky top-0 bg-white z-10 shadow-sm">
+                <TableRow>
+                  <TableHead className="bg-white">Código</TableHead>
+                  <TableHead className="bg-white">Producto</TableHead>
+                  <TableHead className="bg-white">Precio</TableHead>
                 </TableRow>
-              ))
-            ) : (
-              <TableRow>
-                <TableCell colSpan={4} className="text-center">
-                  No products found.
-                </TableCell>
-              </TableRow>
-            )}
-          </TableBody>
-        </Table>
+              </TableHeader>
+              <TableBody>
+                {filteredProducts.length === 0 ? (
+                  <TableRow>
+                    <TableCell colSpan={3} className="text-center py-8">
+                      No se encontraron productos.
+                    </TableCell>
+                  </TableRow>
+                ) : (
+                  filteredProducts.map((product) => (
+                    <TableRow
+                      key={product.id}
+                      className="cursor-pointer hover:bg-muted"
+                      onClick={() => {
+                        onSelect({ ...product, quantity: 1 });
+                        onClose();
+                      }}
+                    >
+                      <TableCell>{product.code}</TableCell>
+                      <TableCell>{product.name}</TableCell>
+                      <TableCell>${product.price.toFixed(2)}</TableCell>
+                    </TableRow>
+                  ))
+                )}
+              </TableBody>
+            </Table>
+          </div>
+        </div>
       </DialogContent>
     </Dialog>
   );

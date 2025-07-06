@@ -80,11 +80,11 @@ export default function CustomerSearch({ open, onClose, onSelect }: CustomerSear
 
   return (
     <Dialog open={open} onOpenChange={onClose}>
-      <DialogContent className="max-w-3xl">
+      <DialogContent className="max-w-4xl max-h-[80vh] flex flex-col">
         <DialogHeader>
           <DialogTitle>Buscar Cliente</DialogTitle>
         </DialogHeader>
-        <div className="relative">
+        <div className="relative mb-4">
           <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
           <input
             type="text"
@@ -94,24 +94,40 @@ export default function CustomerSearch({ open, onClose, onSelect }: CustomerSear
             onChange={(e) => setSearchTerm(e.target.value)}
           />
         </div>
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>Code</TableHead>
-              <TableHead>Nombre</TableHead>
-              <TableHead>Telefono</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {filteredCustomers.map((customer) => (
-              <TableRow key={customer.id} onClick={() => handleClientClick(customer)}>
-                <TableCell>{customer.code}</TableCell>
-                <TableCell>{customer.name}</TableCell>
-                <TableCell>{customer.phone}</TableCell>
-              </TableRow>
-            ))}
-          </TableBody>
-        </Table>
+        <div className="flex-1 overflow-hidden">
+          <div className="overflow-y-auto max-h-[60vh] border rounded">
+            <Table>
+              <TableHeader className="sticky top-0 bg-white z-10 shadow-sm">
+                <TableRow>
+                  <TableHead className="bg-white">Código</TableHead>
+                  <TableHead className="bg-white">Nombre</TableHead>
+                  <TableHead className="bg-white">Teléfono</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {filteredCustomers.length === 0 ? (
+                  <TableRow>
+                    <TableCell colSpan={3} className="text-center py-8">
+                      No se encontraron clientes.
+                    </TableCell>
+                  </TableRow>
+                ) : (
+                  filteredCustomers.map((customer) => (
+                    <TableRow 
+                      key={customer.id} 
+                      onClick={() => handleClientClick(customer)}
+                      className="cursor-pointer hover:bg-muted"
+                    >
+                      <TableCell>{customer.code}</TableCell>
+                      <TableCell>{customer.name}</TableCell>
+                      <TableCell>{customer.phone}</TableCell>
+                    </TableRow>
+                  ))
+                )}
+              </TableBody>
+            </Table>
+          </div>
+        </div>
       </DialogContent>
     </Dialog>
   );
