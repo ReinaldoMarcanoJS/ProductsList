@@ -1,14 +1,16 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState, useEffect } from "react";
+import { useRouter } from "next/navigation";
 import { Search } from "lucide-react";
+import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
 import {
   Dialog,
   DialogContent,
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { Input } from "@/components/ui/input";
 import {
   Table,
   TableBody,
@@ -17,15 +19,22 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { Product } from "@/types";
-import { useRouter } from "next/navigation";
-import Cookies from "js-cookie";
 import { createClient } from "@/utils/supabase/client";
+import { useAuth } from "@/hooks/use-auth";
+
+interface Product {
+  id: string;
+  name: string;
+  unit: string;
+  code: number;
+  price: number;
+  quantity: number;
+}
 
 interface ProductSearchProps {
   open: boolean;
   onClose: () => void;
-  onSelect: (product: any) => void;
+  onSelect: (product: Product) => void;
 }
 
 export default function ProductSearch({
@@ -37,27 +46,28 @@ export default function ProductSearch({
   const [products, setProducts] = useState<Product[]>([]);
   const router = useRouter();
   const supabase = createClient();
+  const { userId, loading: authLoading } = useAuth();
 
   useEffect(() => {
-    async function getProductList() {
-      const userId = Cookies.get("user_id");
-      if (!userId) {
-        router.push("/login");
-        return;
-      }
-      try {
-        const { data, error } = await supabase
-          .from("products")
-          .select("*")
-          .eq("userId", userId);
-        if (error) throw error;
-        setProducts(data || []);
-      } catch (error) {
-        setProducts([]);
-      }
+    if (!authLoading && userId) {
+      getProductList();
     }
-    getProductList();
-  }, []);
+  }, [userId, authLoading]);
+
+  async function getProductList() {
+    if (!userId) return;
+    
+    try {
+      const { data, error } = await supabase
+        .from("products")
+        .select("*")
+        .eq("userId", userId);
+      if (error) throw error;
+      setProducts(data || []);
+    } catch (error) {
+      setProducts([]);
+    }
+  }
 
   const filteredProducts = products
     .filter(
@@ -105,7 +115,7 @@ export default function ProductSearch({
                   key={product.id}
                   className="cursor-pointer hover:bg-muted"
                   onClick={() => {
-                    onSelect(product);
+                    onSelect({ ...product, quantity: 1 });
                     onClose();
                   }}
                 >

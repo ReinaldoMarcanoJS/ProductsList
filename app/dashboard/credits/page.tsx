@@ -12,11 +12,11 @@ import {
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
 import { createClient } from '@/utils/supabase/client'
-import Cookies from 'js-cookie'
 import InvoiceItemsModal from '@/app/components/InvoiceItemsModal'
 import PaymentModal from '@/app/components/PaymentModal'
 import CustomerInvoicesModal from '@/app/components/CustomerInvoicesModal'
 import { Credit, Factura, InvoiceItem, NewCredit } from '@/app/types/credits'
+import { useAuth } from '@/hooks/use-auth'
 
 // Constants
 const DECIMAL_TOLERANCE = 0.01
@@ -35,7 +35,7 @@ const formatCurrency = (amount: number): string => {
 }
 
 const getPendingAmount = (credit: Credit): number => {
-  return credit.pending_amount ?? credit.total
+  return credit.pending_amount ?? 0
 }
 
 const isCreditPaid = (credit: Credit): boolean => {
@@ -65,10 +65,11 @@ export default function CreditList() {
   const [paymentLoading, setPaymentLoading] = useState(false)
 
   const supabase = createClient()
+  const { userId, loading: authLoading } = useAuth()
 
   // Helper functions
   const getUserId = (): string | undefined => {
-    return Cookies.get("user_id")
+    return userId || undefined
   }
 
   const groupCreditsByCustomer = (credits: any[]): Credit[] => {
@@ -157,23 +158,26 @@ export default function CreditList() {
 
   // Main functions
   const fetchCredits = async (): Promise<void> => {
-    setLoading(true)
-    const userId = getUserId()
-    
     if (!userId) {
       setCredits([])
       setLoading(false)
       return
     }
 
+    setLoading(true)
     await cleanupZeroCredits(userId)
     const groupedCredits = await fetchAndGroupCredits(userId)
     setCredits(groupedCredits)
     setLoading(false)
   }
 
+  useEffect(() => {
+    if (!authLoading && userId) {
+      fetchCredits()
+    }
+  }, [userId, authLoading])
+
   const addCredit = async (): Promise<void> => {
-    const userId = getUserId()
     if (!userId || !newCredit.name || !newCredit.amount) return
 
     const { error } = await supabase.from("credits").insert([{
@@ -198,14 +202,11 @@ export default function CreditList() {
   }
 
   const handleViewFacturas = async (customer_id: string | undefined, customer_name: string): Promise<void> => {
-    if (!customer_id && !customer_name) return
+    if (!customer_id && !customer_name || !userId) return
     
     setModalOpen(true)
     setModalCustomer({ id: customer_id, name: customer_name })
     setModalCreditsLoading(true)
-    
-    const userId = getUserId()
-    if (!userId) return
 
     let query = supabase.from("credits").select("*").eq("user_id", userId)
     if (customer_id) {
@@ -245,13 +246,11 @@ export default function CreditList() {
   }
 
   const handleProcessPayment = async (): Promise<void> => {
-    if (!selectedCredit || !paymentAmount || parseFloat(paymentAmount) <= 0) return
+    if (!selectedCredit || !paymentAmount || parseFloat(paymentAmount) <= 0 || !userId) return
     
     setPaymentLoading(true)
-    const userId = getUserId()
-    if (!userId) return
 
-    const paymentValue = parseFloat(paymentAmount)
+    let paymentValue = parseFloat(paymentAmount)
     
     try {
       // Fetch customer credits
@@ -269,85 +268,37 @@ export default function CreditList() {
         return
       }
 
-      // Validate payment amount
-      const totalPending = creditData.reduce((sum, c) => sum + (c.pending_amount ?? 0), 0)
-      if (paymentValue > totalPending + DECIMAL_TOLERANCE) {
-        alert(`El monto a pagar (${formatCurrency(paymentValue)}) no puede ser mayor al monto pendiente total (${formatCurrency(totalPending)})`)
-        setPaymentLoading(false)
-        return
-      }
-
-      // Process payment distribution
-      let remainingPayment = paymentValue
-      const updates: any[] = []
-      const toDelete: string[] = []
-      
+      // Process payment for each credit
       for (const credit of creditData) {
-        if (remainingPayment <= DECIMAL_TOLERANCE) break
-        
-        const currentPendingAmount = credit.pending_amount ?? credit.total
-        if (currentPendingAmount <= DECIMAL_TOLERANCE) continue
-        
-        const paymentForThisCredit = Math.min(remainingPayment, currentPendingAmount)
-        const newPendingAmount = Math.max(0, currentPendingAmount - paymentForThisCredit)
-        const newStatus = newPendingAmount <= DECIMAL_TOLERANCE ? "pagado" : "pendiente"
-        
-        if (newPendingAmount <= DECIMAL_TOLERANCE) {
-          toDelete.push(credit.id)
-        } else {
-          updates.push({
-            id: credit.id,
-            pending_amount: newPendingAmount,
-            status: newStatus
-          })
-        }
-        
-        remainingPayment -= paymentForThisCredit
-      }
-      
-      // Update credits
-      for (const update of updates) {
+        if (paymentValue <= 0) break
+
+        const currentPending = credit.pending_amount || 0
+        const paymentForThisCredit = Math.min(paymentValue, currentPending)
+        const newPending = currentPending - paymentForThisCredit
+
+        // Update credit
         const { error: updateError } = await supabase
           .from("credits")
-          .update({
-            pending_amount: update.pending_amount,
-            status: update.status
-          })
-          .eq("id", update.id)
-        
+          .update({ pending_amount: newPending })
+          .eq("id", credit.id)
+          .eq("user_id", userId)
+
         if (updateError) {
           console.error("Error updating credit:", updateError)
-          setPaymentLoading(false)
-          return
+          continue
         }
+
+        paymentValue -= paymentForThisCredit
       }
-      
-      // Delete paid credits and their invoice_items
-      if (toDelete.length > 0) {
-        // Primero eliminar los invoice_items asociados
-        await deleteInvoiceItemsForCredits(toDelete)
-        
-        // Luego eliminar los créditos
-        const { error: deleteError } = await supabase
-          .from("credits")
-          .delete()
-          .in("id", toDelete)
-        
-        if (deleteError) {
-          console.error("Error deleting credits:", deleteError)
-          setPaymentLoading(false)
-          return
-        }
-      }
-      
-      // Refresh credits list
-      await fetchCredits()
-      
-      // Reset payment modal
+
+      // Clean up zero credits and refresh
+      await cleanupZeroCredits(userId)
+      const groupedCredits = await fetchAndGroupCredits(userId)
+      setCredits(groupedCredits)
+
       setPaymentModalOpen(false)
       setSelectedCredit(null)
       setPaymentAmount('')
-      
     } catch (error) {
       console.error("Error processing payment:", error)
     } finally {
@@ -355,13 +306,23 @@ export default function CreditList() {
     }
   }
 
+  // Mostrar loading mientras se verifica la autenticación
+  if (authLoading) {
+    return (
+      <div className="w-full py-6 gap-4">
+        <div className="text-center">Cargando...</div>
+      </div>
+    )
+  }
 
-
-  // Effects
-  useEffect(() => {
-    fetchCredits()
-  }, [])
-
+  // Redirigir si no hay usuario autenticado
+  if (!userId) {
+    return (
+      <div className="w-full py-6 gap-4">
+        <div className="text-center">No autorizado</div>
+      </div>
+    )
+  }
 
 
   return (

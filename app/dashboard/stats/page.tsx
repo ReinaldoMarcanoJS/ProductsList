@@ -1,12 +1,13 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { DollarSign, TrendingUp, Calendar, Package, Users, CreditCard } from "lucide-react"
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { DollarSign, TrendingUp, Calendar, Package, Users, CreditCard } from 'lucide-react'
 import { createClient } from '@/utils/supabase/client'
-import { getDolarApi, DolarQuery } from '@/lib/getDolarApi'
-import Cookies from 'js-cookie'
+import { getDolarApi } from '@/lib/getDolarApi'
+import { DolarQuery } from '@/types'
 import { useRouter } from 'next/navigation'
+import { useAuth } from '@/hooks/use-auth'
 
 interface StatsData {
   monthlySales: number
@@ -29,6 +30,7 @@ export default function StatsCards() {
   const [loading, setLoading] = useState(true)
   const supabase = createClient()
   const router = useRouter()
+  const { userId, loading: authLoading } = useAuth()
 
   // Función para formatear moneda
   const formatCurrency = (amount: number): string => {
@@ -133,29 +135,45 @@ export default function StatsCards() {
       .from('credits')
       .select('pending_amount')
       .eq('user_id', userId)
-      .gt('pending_amount', 0.01)
 
     if (error) {
-      console.error('Error fetching pending credits:', error)
+      console.error('Error fetching total pending credits:', error)
       return 0
     }
 
     return data?.reduce((sum, credit) => sum + (credit.pending_amount || 0), 0) || 0
   }
 
-  // Función para cargar todas las estadísticas
-  const loadStats = async () => {
-    setLoading(true)
-    const userId = Cookies.get('user_id')
-
-    if (!userId) {
-      setLoading(false)
-      return
-    }
-
+  // Función para formatear la fecha de actualización del dólar
+  const formatDollarUpdateTime = (timestamp: string): string => {
     try {
-      // Cargar datos en paralelo
-      const [monthlySales, dailySales, dollarRate, totalProducts, totalCustomers, totalPendingCredits] = await Promise.all([
+      const date = new Date(timestamp)
+      return date.toLocaleString('es-VE', {
+        hour: '2-digit',
+        minute: '2-digit',
+        day: '2-digit',
+        month: '2-digit',
+        year: 'numeric'
+      })
+    } catch {
+      return 'N/A'
+    }
+  }
+
+  // Cargar todas las estadísticas
+  const loadStats = async () => {
+    if (!userId) return
+    
+    setLoading(true)
+    try {
+      const [
+        monthlySales,
+        dailySales,
+        dollarRate,
+        totalProducts,
+        totalCustomers,
+        totalPendingCredits
+      ] = await Promise.all([
         getMonthlySales(userId),
         getDailySales(userId),
         getDollarRate(),
@@ -179,26 +197,28 @@ export default function StatsCards() {
     }
   }
 
-  // Cargar estadísticas al montar el componente
   useEffect(() => {
-    loadStats()
-  }, [])
-
-  // Función para formatear la fecha de actualización del dólar
-  const formatDollarUpdateTime = (dateString: string): string => {
-    try {
-      const date = new Date(dateString)
-      return date.toLocaleString('es-VE', {
-        day: '2-digit',
-        month: '2-digit',
-        year: 'numeric',
-        hour: '2-digit',
-        minute: '2-digit'
-      })
-    } catch {
-      // Si no se puede parsear la fecha, mostrar la string original
-      return dateString || 'Fecha no disponible'
+    if (!authLoading && userId) {
+      loadStats()
     }
+  }, [userId, authLoading])
+
+  // Mostrar loading mientras se verifica la autenticación
+  if (authLoading) {
+    return (
+      <div className="w-full py-6 gap-4">
+        <div className="text-center">Cargando...</div>
+      </div>
+    )
+  }
+
+  // Redirigir si no hay usuario autenticado
+  if (!userId) {
+    return (
+      <div className="w-full py-6 gap-4">
+        <div className="text-center">No autorizado</div>
+      </div>
+    )
   }
 
   return (

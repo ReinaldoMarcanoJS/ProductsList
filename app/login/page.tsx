@@ -5,6 +5,7 @@ import * as Yup from "yup";
 import Link from "next/link";
 import { useToast } from "@/hooks/use-toast";
 import { createClient } from "@/utils/supabase/client";
+import Cookies from "js-cookie";
 
 interface userLoginTypes {
   email: string;
@@ -29,7 +30,7 @@ function Login() {
     actions: FormikHelpers<userLoginTypes>
   ) => {
     try {
-      const { error } = await supabase.auth.signInWithPassword({
+      const { data, error } = await supabase.auth.signInWithPassword({
         email: values.email,
         password: values.password,
       });
@@ -42,6 +43,11 @@ function Login() {
         });
         actions.setSubmitting(false);
         return;
+      }
+
+      // Guardar el user_id en las cookies
+      if (data.user) {
+        Cookies.set("user_id", data.user.id, { expires: 7 }); // Expira en 7 días
       }
 
       toast({

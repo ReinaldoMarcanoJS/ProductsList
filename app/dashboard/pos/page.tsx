@@ -17,6 +17,7 @@ import CustomerSearch from './CustomerSearch'
 import Sidebar from '@/app/components/Sidebar'
 import { createClient } from "@/utils/supabase/client";
 import { useToast } from "@/hooks/use-toast";
+import { useAuth } from "@/hooks/use-auth";
 
 interface Product {
   id: string
@@ -53,27 +54,28 @@ export default function InvoiceSystem() {
   const productInputRef = useRef<HTMLInputElement>(null);
   const supabase = createClient();
   const toast = useToast();
+  const { userId, loading: authLoading } = useAuth();
 
   useEffect(() => {
-    async function getProductList() {
-      const userId = Cookies.get("user_id");
-      if (!userId) {
-        router.push("/login");
-        return;
-      }
-      try {
-        const { data, error } = await supabase
-          .from("products")
-          .select("*")
-          .eq("userId", userId);
-        if (error) throw error;
-        setProducts(data || []);
-      } catch (error) {
-        setProducts([]);
-      }
+    if (!authLoading && userId) {
+      getProductList();
     }
-    getProductList();
-  }, []);
+  }, [userId, authLoading]);
+
+  async function getProductList() {
+    if (!userId) return;
+    
+    try {
+      const { data, error } = await supabase
+        .from("products")
+        .select("*")
+        .eq("userId", userId);
+      if (error) throw error;
+      setProducts(data || []);
+    } catch (error) {
+      setProducts([]);
+    }
+  }
 
   const addProduct = (product: Product) => {
     const existingProduct = selectedProducts.find(p => p.id === product.id);

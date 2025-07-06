@@ -23,8 +23,7 @@ import Cookies from 'js-cookie'
 import { useRouter } from 'next/navigation'
 import { toast } from "@/hooks/use-toast";
 import {createClient} from '@/utils/supabase/client'
-// Mock data - replace with your actual data source
-
+import { useAuth } from '@/hooks/use-auth'
 
 interface CustomerSearchProps {
   open: boolean
@@ -38,35 +37,34 @@ export default function CustomerSearch({ open, onClose, onSelect }: CustomerSear
   const [clientSelected, setClientSelected] = useState<Client | undefined>(undefined)
   const router = useRouter();
   const supabase = createClient();
-   const fetchSupabaseClients = async () => {
-        try {
-          // Obtener el userId de las cookies
-          const userId = document.cookie
-            .split("; ")
-            .find((row) => row.startsWith("user_id="))
-            ?.split("=")[1];
-  
-          const { data, error } = await supabase
-            .from("clients")
-            .select("*")
-            .eq("userId", userId);
-  
-          if (error) throw error;
-          setclients(data || []);
-        } catch (error) {
-          console.error("Error fetching clients from Supabase:", error);
-          toast({
-            variant: "destructive",
-            title: "Error",
-            description: "No se pudieron cargar los clientes desde Supabase.",
-          });
-        } 
-      };
+  const { userId, loading: authLoading } = useAuth();
+
+  const fetchSupabaseClients = async () => {
+    if (!userId) return;
+    
+    try {
+      const { data, error } = await supabase
+        .from("clients")
+        .select("*")
+        .eq("userId", userId);
+
+      if (error) throw error;
+      setclients(data || []);
+    } catch (error) {
+      console.error("Error fetching clients from Supabase:", error);
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: "No se pudieron cargar los clientes desde Supabase.",
+      });
+    } 
+  };
 
   useEffect(() => {
-      
+    if (!authLoading && userId) {
       fetchSupabaseClients()
-  }, []);
+    }
+  }, [userId, authLoading]);
 
   const filteredCustomers = clients.filter(customer =>
     customer.name.toLowerCase().includes(searchTerm.toLowerCase())

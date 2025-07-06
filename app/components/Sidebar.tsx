@@ -6,12 +6,14 @@ import { usePathname } from "next/navigation";
 import { createClient } from "@/utils/supabase/client";
 import Cookies from "js-cookie";
 import { DolarQuery } from "@/types";
+import { useAuth } from "@/hooks/use-auth";
 
 const Sidebar = () => {
   const [activeTab, setActiveTab] = useState<string>("");
   const [loading, setLoading] = useState<boolean>(false);
   const pathname = usePathname();
   const myRef = useRef<HTMLDivElement>(null);
+  const { userId, signOut, isAuthenticated } = useAuth();
 
   useEffect(() => {
     fetch("https://ve.dolarapi.com/v1/dolares/oficial")
@@ -23,17 +25,7 @@ const Sidebar = () => {
       .catch((error) => {
         console.error("Error fetching dolar data:", error);
       });
-    // Verifica la validez de la sesión con Supabase cada vez que cambia la ruta
-    const checkSession = async () => {
-      const supabase = createClient();
-      const { data: { session } } = await supabase.auth.getSession();
-      if (!session) {
-        // window.location.href = "/login";
-        return;
-      }
-    };
 
-    checkSession();
     setActiveTab(pathname);
     setLoading(false); // Oculta el cargando cuando cambia la ruta
   }, [pathname]);
@@ -43,6 +35,11 @@ const Sidebar = () => {
       setLoading(true);
       setActiveTab(href);
     }
+  };
+
+  const handleSignOut = async () => {
+    await signOut();
+    window.location.href = "/login";
   };
 
   return (
@@ -150,11 +147,7 @@ const Sidebar = () => {
       <div className="px-4 pb-6 mt-auto">
         <button
           className="w-full block p-3 rounded bg-red-500 hover:bg-red-600 text-white font-semibold transition-all shadow"
-          onClick={async () => {
-            const supabase = createClient();
-            await supabase.auth.signOut();
-            window.location.href = "/login";
-          }}
+          onClick={handleSignOut}
         >
           Cerrar sesión
         </button>

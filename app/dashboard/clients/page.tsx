@@ -15,7 +15,7 @@ import { Pencil, Plus, Trash2 } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 import { Client } from "@/types";
 import { createClient } from "@/utils/supabase/client";
-import Cookies from "js-cookie";
+import { useAuth } from "@/hooks/use-auth";
 
 export default function ClientsList() {
   const [clients, setClients] = useState<Client[]>([]);
@@ -33,15 +33,14 @@ export default function ClientsList() {
   const [editingClient, setEditingClient] = useState<Client | null>(null);
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const supabase = createClient();
-
-  // Obtener userId de cookies
-  const getUserId = () => Cookies.get("user_id") || "";
+  const { userId, loading: authLoading } = useAuth();
 
   // Cargar clientes desde Supabase
   const fetchClients = async () => {
+    if (!userId) return;
+    
     setIsLoading(true);
     try {
-      const userId = getUserId();
       const { data, error } = await supabase
         .from("clients")
         .select("*")
@@ -62,8 +61,10 @@ export default function ClientsList() {
   };
 
   useEffect(() => {
-    fetchClients();
-  }, []);
+    if (!authLoading && userId) {
+      fetchClients();
+    }
+  }, [userId, authLoading]);
 
   // Filtrar clientes por búsqueda
   useEffect(() => {
@@ -77,7 +78,15 @@ export default function ClientsList() {
 
   // Agregar o actualizar cliente
   const saveClient = async () => {
-    const userId = getUserId();
+    if (!userId) {
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: "No se encontró el usuario.",
+      });
+      return;
+    }
+
     if (!newClient.name || !newClient.phone) {
       toast({
         variant: "destructive",
@@ -106,7 +115,8 @@ export default function ClientsList() {
         const { error } = await supabase
           .from("clients")
           .update(clientData)
-          .eq("id", editingClient.id);
+          .eq("id", editingClient.id)
+          .eq("userId", userId); // Asegurar que solo actualice clientes del usuario
         if (error) throw error;
         toast({ title: "Cliente actualizado" });
       } else {
@@ -132,8 +142,14 @@ export default function ClientsList() {
 
   // Eliminar cliente
   const deleteClient = async (id: string) => {
+    if (!userId) return;
+    
     try {
-      const { error } = await supabase.from("clients").delete().eq("id", id);
+      const { error } = await supabase
+        .from("clients")
+        .delete()
+        .eq("id", id)
+        .eq("userId", userId); // Asegurar que solo elimine clientes del usuario
       if (error) throw error;
       toast({ title: "Cliente eliminado" });
       fetchClients();
@@ -159,6 +175,24 @@ export default function ClientsList() {
     if (digits.length > 8) digits = digits.slice(0, 8) + "-" + digits.slice(8);
     return digits;
   };
+
+  // Mostrar loading mientras se verifica la autenticación
+  if (authLoading) {
+    return (
+      <div className="w-full py-6 gap-4">
+        <div className="text-center">Cargando...</div>
+      </div>
+    );
+  }
+
+  // Redirigir si no hay usuario autenticado
+  if (!userId) {
+    return (
+      <div className="w-full py-6 gap-4">
+        <div className="text-center">No autorizado</div>
+      </div>
+    );
+  }
 
   return (
     <div className="w-full py-6 gap-4">

@@ -18,6 +18,7 @@ import { useToast } from "@/hooks/use-toast";
 import Cookies from "js-cookie";
 import Sidebar from "../../components/Sidebar";
 import { createClient } from "@/utils/supabase/client";
+import { useAuth } from "@/hooks/use-auth";
 
 const EXCHANGE_RATE = 35.5; // Tasa de cambio ficticia
 
@@ -33,6 +34,7 @@ export default function ProductList() {
   const toast = useToast();
   const router = useRouter();
   const supabase = createClient();
+  const { userId, loading: authLoading } = useAuth();
 
   // Estado para saber si se está borrando un producto
   const [deletingId, setDeletingId] = useState<string | null>(null);
@@ -59,36 +61,38 @@ export default function ProductList() {
               } catch (error) {
                 console.error("Error in useEffect:", error);
               }
-    async function getProductList() {
-      setIsLoading(true);
-      const userId = Cookies.get("user_id");
-      if (!userId) {
-        router.push("/login");
-        return;
-      }
-      try {
-        const { data, error } = await supabase
-          .from("products")
-          .select("*")
-          .eq("userId", userId);
-        if (error) throw error;
-        setProducts(data || []);
-      } catch (error) {
-        console.error("Error fetching products:", error);
-        toast.toast({
-          title: "Error",
-          description: "No se pudieron obtener los productos.",
-        });
-      } finally {
-        setIsLoading(false);
-      }
-    }
-    getProductList();
   }, []);
+
+  useEffect(() => {
+    if (!authLoading && userId) {
+      getProductList();
+    }
+  }, [userId, authLoading]);
+
+  async function getProductList() {
+    if (!userId) return;
+    
+    setIsLoading(true);
+    try {
+      const { data, error } = await supabase
+        .from("products")
+        .select("*")
+        .eq("userId", userId);
+      if (error) throw error;
+      setProducts(data || []);
+    } catch (error) {
+      console.error("Error fetching products:", error);
+      toast.toast({
+        title: "Error",
+        description: "No se pudieron obtener los productos.",
+      });
+    } finally {
+      setIsLoading(false);
+    }
+  }
 
   // Agregar producto a Supabase
   const addProduct = async (product: Product) => {
-    const userId = Cookies.get("user_id");
     if (!userId) {
       toast.toast({
         title: "Error",
@@ -143,10 +147,15 @@ export default function ProductList() {
 
   // Eliminar producto de Supabase
   const deleteProduct = async (id: string) => {
+    if (!userId) return;
+    
     setDeletingId(id); // Mostrar "Borrando..." en la fila
-    const userId = Cookies.get("user_id");
     try {
-      const { error } = await supabase.from("products").delete().eq("id", id);
+      const { error } = await supabase
+        .from("products")
+        .delete()
+        .eq("id", id)
+        .eq("userId", userId); // Asegurar que solo elimine productos del usuario
       if (error) throw error;
       // Refresca la lista
       const { data } = await supabase
@@ -169,7 +178,8 @@ export default function ProductList() {
     product: Product,
     e: React.MouseEvent<HTMLButtonElement>
   ) => {
-    const userId = Cookies.get("user_id");
+    if (!userId) return;
+    
     try {
       const { error } = await supabase
         .from("products")
@@ -177,7 +187,8 @@ export default function ProductList() {
           ...product,
           updatedAt: new Date(),
         })
-        .eq("id", product.id);
+        .eq("id", product.id)
+        .eq("userId", userId); // Asegurar que solo actualice productos del usuario
       if (error) throw error;
       // Refresca la lista
       const { data } = await supabase
@@ -236,6 +247,24 @@ export default function ProductList() {
 
     setFilteredProducts(filteredProducts);
   }, [products, searchTerm]);
+
+  // Mostrar loading mientras se verifica la autenticación
+  if (authLoading) {
+    return (
+      <div className="w-full py-6 gap-4">
+        <div className="text-center">Cargando...</div>
+      </div>
+    );
+  }
+
+  // Redirigir si no hay usuario autenticado
+  if (!userId) {
+    return (
+      <div className="w-full py-6 gap-4">
+        <div className="text-center">No autorizado</div>
+      </div>
+    );
+  }
 
   return (
     <div className="w-full flex flex-col gap-4 mt-4">
