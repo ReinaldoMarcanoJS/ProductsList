@@ -1,6 +1,8 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useRef, useEffect } from 'react'
+import { useRouter } from 'next/navigation'
+import Cookies from 'js-cookie'
 import { format } from 'date-fns'
 import { Search, Users, Calculator, ShoppingCart, Package2 } from 'lucide-react'
 import { Input } from '@/components/ui/input'
@@ -8,10 +10,13 @@ import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import ProductSearch from './ProductSearch'
+import InvoicePreviewModal from './InvoicePreviewModal'
 import InvoiceTable from './InvoiceTable'
-import TotalsSummary from '../products/TotalsSummary'
+import TotalsSummary from './TotalsSummary'
 import CustomerSearch from './CustomerSearch'
 import Sidebar from '@/app/components/Sidebar'
+import { createClient } from "@/utils/supabase/client";
+import { useToast } from "@/hooks/use-toast";
 
 interface Product {
   id: string
@@ -22,52 +27,121 @@ interface Product {
   quantity: number
 }
 
+// Asegúrate de que Customer pueda ser null o un objeto, pero no el string "Contado"
 interface Customer {
   id: string
   name: string
   document: string
 }
 
+interface isCredit {
+
+}
+
 export default function InvoiceSystem() {
-  const [selectedProducts, setSelectedProducts] = useState<Product[]>([])
-  // const [selectedClient, setSelectedClient] = useState<ClientTypes | null>([])
-  const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(null)
-  const [isProductSearchOpen, setIsProductSearchOpen] = useState(false)
-  const [isCustomerSearchOpen, setIsCustomerSearchOpen] = useState(false)
+  const router = useRouter();
+  const [selectedProducts, setSelectedProducts] = useState<Product[]>([]);
+  const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(null);
+  const [isProductSearchOpen, setIsProductSearchOpen] = useState(false);
+  const [isCustomerSearchOpen, setIsCustomerSearchOpen] = useState(false);
   const [showInvoice, setShowInvoice] = useState(false);
+  const [productCode, setProductCode] = useState('');
+  const [products, setProducts] = useState<Product[]>([]);
+  const [paymentType, setPaymentType] = useState<"Pago" | "Credito">('Pago');
+  const [taxRate, setTaxRate] = useState<number>(0); // IVA configurable, inicialmente en 0%
+
+  const productInputRef = useRef<HTMLInputElement>(null);
+  const supabase = createClient();
+  const toast = useToast();
+
+  useEffect(() => {
+    async function getProductList() {
+      const userId = Cookies.get("user_id");
+      if (!userId) {
+        router.push("/login");
+        return;
+      }
+      try {
+        const { data, error } = await supabase
+          .from("products")
+          .select("*")
+          .eq("userId", userId);
+        if (error) throw error;
+        setProducts(data || []);
+      } catch (error) {
+        setProducts([]);
+      }
+    }
+    getProductList();
+  }, []);
 
   const addProduct = (product: Product) => {
-    const existingProduct = selectedProducts.find(p => p.id === product.id)
+    const existingProduct = selectedProducts.find(p => p.id === product.id);
     if (existingProduct) {
       setSelectedProducts(selectedProducts.map(p =>
         p.id === product.id
           ? { ...p, quantity: p.quantity + 1 }
           : p
-      ))
+      ));
     } else {
-      setSelectedProducts([...selectedProducts, { ...product, quantity: 1 }])
+      setSelectedProducts([...selectedProducts, { ...product, quantity: 1 }]);
     }
-  }
+  };
 
   const updateQuantity = (productId: string, quantity: number) => {
     setSelectedProducts(selectedProducts.map(p =>
       p.id === productId ? { ...p, quantity } : p
-    ))
-  }
+    ));
+  };
 
   const removeProduct = (productId: string) => {
-    setSelectedProducts(selectedProducts.filter(p => p.id !== productId))
-  }
+    setSelectedProducts(selectedProducts.filter(p => p.id !== productId));
+  };
 
   const calculateTotals = () => {
     const subtotal = selectedProducts.reduce((sum, product) =>
       sum + (product.price * product.quantity), 0
-    )
-    const tax = subtotal * 0.16 // 16% tax rate
-    const total = subtotal + tax
+    );
+    const tax = subtotal * (taxRate / 100); // Usar el IVA configurable
+    const total = subtotal + tax;
 
-    return { subtotal, tax, total }
-  }
+    return { subtotal, tax, total };
+  };
+
+  const findProductByCode = (code: string): Product | undefined => {
+    const product = products.find(p => p.code.toString() === code);
+    if (product) {
+      addProduct(product);
+      return product;
+    }
+    return undefined;
+  };
+
+  const handleProductCodeKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === "Enter" && productCode.trim() !== "") {
+      const product = findProductByCode(productCode.trim());
+      if (product) {
+        addProduct(product);
+        setProductCode('');
+        productInputRef.current?.focus();
+      } else {
+        toast.toast({
+          title: "Producto no encontrado",
+          description: `No se encontró un producto con el código ${productCode.trim()}`,
+          variant: "destructive",
+        });
+      }
+    }
+  };
+
+  const clearForm = () => {
+    setSelectedProducts([]);
+    setSelectedCustomer(null);
+    setProductCode('');
+    setPaymentType('Pago');
+    // Enfocar el input del código del producto para la siguiente venta
+    productInputRef.current?.focus();
+  };
 
   return (
     <div className="flex justify-center items-center max-w-[1800px] mt-6 ">
@@ -99,9 +173,9 @@ export default function InvoiceSystem() {
                       value={selectedCustomer?.name || ''}
                       onChange={e => {
                         if (selectedCustomer) {
-                          setSelectedCustomer({ ...selectedCustomer, name: e.target.value })
+                          setSelectedCustomer({ ...selectedCustomer, name: e.target.value });
                         } else {
-                          setSelectedCustomer({ id: '', name: e.target.value, document: '' })
+                          setSelectedCustomer({ id: '', name: e.target.value, document: '' });
                         }
                       }}
                     />
@@ -125,15 +199,19 @@ export default function InvoiceSystem() {
                   <Search className="h-4 w-4 mr-2" />
                   Buscar Productos
                 </Button>
-                <Button variant="outline" className="flex-1">
-                  <Calculator className="h-4 w-4 mr-2" />
-                  Calculadora
-                </Button>
+                <Input
+                  ref={productInputRef}
+                  className="flex-1"
+                  type='number'
+                  placeholder="Código del producto"
+                  value={productCode}
+                  onChange={e => setProductCode(e.target.value)}
+                  onKeyDown={handleProductCodeKeyDown}
+                />
               </div>
 
               {/* Products Table */}
               <InvoiceTable
-
                 products={selectedProducts}
                 onUpdateQuantity={updateQuantity}
                 onRemoveProduct={removeProduct}
@@ -143,20 +221,81 @@ export default function InvoiceSystem() {
 
           {/* Right Side - Totals */}
           <div className="w-80 bg-white border-l p-4 overflow-auto">
-            <TotalsSummary totals={calculateTotals()} customer={selectedCustomer} />
+            {/* Tax Rate Configuration */}
+            <div className="mb-4 p-3 bg-gray-50 rounded-lg">
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Porcentaje de IVA
+              </label>
+              <div className="flex items-center gap-2">
+                <Input
+                  type="number"
+                  min="0"
+                  max="100"
+                  step="0.01"
+                  value={taxRate}
+                  onChange={(e) => {
+                    const value = parseFloat(e.target.value);
+                    if (!isNaN(value) && value >= 0 && value <= 100) {
+                      setTaxRate(value);
+                    } else if (e.target.value === '') {
+                      setTaxRate(0);
+                    }
+                  }}
+                  className="flex-1"
+                  placeholder="0"
+                />
+                <span className="text-sm text-gray-500">%</span>
+              </div>
+              <div className="mt-2 flex gap-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setTaxRate(0)}
+                  className="flex-1 text-xs"
+                >
+                  0%
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setTaxRate(16)}
+                  className="flex-1 text-xs"
+                >
+                  16%
+                </Button>
+              </div>
+              <div className="mt-1 text-xs text-gray-500">
+                Ingresa el porcentaje de IVA (0-100%)
+              </div>
+            </div>
+            
+            <TotalsSummary totals={calculateTotals()} customer={selectedCustomer} taxRate={taxRate} />
             <div className="mt-4">
-              <Select defaultValue="Pago">
+              <Select value={paymentType} onValueChange={(value) => setPaymentType(value as "Pago" | "Credito")}>
                 <SelectTrigger>
                   <SelectValue placeholder="Pago" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="Contado">Pago</SelectItem>
-                  <SelectItem value="BS">Credito</SelectItem>
+                  <SelectItem value="Pago">Pago</SelectItem>
+                  <SelectItem value="Credito">Credito</SelectItem>
                 </SelectContent>
               </Select>
             </div>
             <div className="mt-4">
-              <Button className="w-full" onClick={() => setShowInvoice(true)}>
+              <Button
+                className="w-full"
+                onClick={() => {
+                  if (selectedProducts.length === 0) {
+                    toast.toast({
+                      title: "No hay productos",
+                      description: "Debes agregar al menos un producto para procesar la venta.",
+                      variant: "destructive",
+                    });
+                    return;
+                  }
+                  setShowInvoice(true);
+                }}
+              >
                 Procesar Venta
               </Button>
             </div>
@@ -178,69 +317,17 @@ export default function InvoiceSystem() {
         />
 
         {/* Invoice Preview Modal */}
-        {showInvoice && (
-          <div className="fixed inset-0 bg-black bg-opacity-40 flex items-center justify-center z-50">
-            <div className="bg-white rounded-lg shadow-lg p-8 w-full max-w-lg">
-              <h2 className="text-xl font-bold mb-4 text-indigo-700">Factura Virtual</h2>
-              <div className="mb-2">
-                <span className="font-semibold">Cliente: </span>
-                {selectedCustomer?.name || "No seleccionado"}
-              </div>
-              <table className="w-full text-sm mb-4">
-                <thead>
-                  <tr className="border-b">
-                    <th className="text-left py-1">Producto</th>
-                    <th className="text-center py-1">Cantidad</th>
-                    <th className="text-right py-1">Precio</th>
-                    <th className="text-right py-1">Total</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {selectedProducts.map((p) => (
-                    <tr key={p.id}>
-                      <td className="py-1">{p.name}</td>
-                      <td className="text-center py-1">{p.quantity}</td>
-                      <td className="text-right py-1">${p.price.toFixed(2)}</td>
-                      <td className="text-right py-1">${(p.price * p.quantity).toFixed(2)}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-              <div className="flex justify-between border-t pt-2 font-semibold">
-                <span>Subtotal:</span>
-                <span>
-                  $
-                  {selectedProducts
-                    .reduce((sum, p) => sum + p.price * p.quantity, 0)
-                    .toFixed(2)}
-                </span>
-              </div>
-              <div className="flex justify-between">
-                <span>IVA (16%):</span>
-                <span>
-                  $
-                  {(
-                    selectedProducts.reduce((sum, p) => sum + p.price * p.quantity, 0) *
-                    0.16
-                  ).toFixed(2)}
-                </span>
-              </div>
-              <div className="flex justify-between text-lg font-bold">
-                <span>Total:</span>
-                <span>
-                  $
-                  {(
-                    selectedProducts.reduce((sum, p) => sum + p.price * p.quantity, 0) *
-                      1.16
-                  ).toFixed(2)}
-                </span>
-              </div>
-              <div className="flex justify-end mt-6">
-                <Button onClick={() => setShowInvoice(false)}>Cerrar</Button>
-              </div>
-            </div>
-          </div>
-        )}
+        {showInvoice &&
+          <InvoicePreviewModal
+            selectedProducts={selectedProducts}
+            selectedCustomer={selectedCustomer}
+            onClose={() => setShowInvoice(false)}
+            setShowInvoice={setShowInvoice}
+            iscredit={paymentType}
+            onClearForm={clearForm}
+            taxRate={taxRate}
+          />
+        }
       </div>
     </div>
   )

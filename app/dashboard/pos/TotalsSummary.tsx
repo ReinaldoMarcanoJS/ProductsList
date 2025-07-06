@@ -15,9 +15,10 @@ interface TotalsSummaryProps {
       name: string;
       document: string;
     } | null;
+    taxRate: number;
   }
   
-  export default function TotalsSummary({ totals, customer }: TotalsSummaryProps) {
+  export default function TotalsSummary({ totals, customer, taxRate }: TotalsSummaryProps) {
     const [dolarBcv, setDolarBcv] = React.useState<null | DolarQuery>()
     useEffect(() => {
           try {
@@ -58,9 +59,14 @@ interface TotalsSummaryProps {
           <span>${totals.subtotal.toFixed(2)}</span>
         </div>
         <div className="flex justify-between">
-          <span>IVA (16%):</span>
+          <span>IVA ({taxRate}%):</span>
           <span>${totals.tax.toFixed(2)}</span>
         </div>
+        {taxRate === 0 && (
+          <div className="text-xs text-blue-600 bg-blue-50 p-2 rounded">
+            IVA exento - No se aplica impuesto
+          </div>
+        )}
         <div className="flex justify-between font-bold text-lg">
           <span>Total:</span>
           <span>${totals.total.toFixed(2)}</span>
