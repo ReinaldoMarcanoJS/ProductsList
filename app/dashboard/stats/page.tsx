@@ -16,6 +16,7 @@ interface StatsData {
   totalProducts: number
   totalCustomers: number
   totalPendingCredits: number
+  inventoryValue?: number
 }
 
 export default function StatsCards() {
@@ -114,6 +115,27 @@ export default function StatsCards() {
     return count || 0
   }
 
+  // Función para obtener el valor total del inventario (precio * cantidad)
+  const getInventoryValue = async (userId: string): Promise<number> => {
+    const { data, error } = await supabase
+      .from('products')
+      .select('price, quantity')
+      .eq('userId', userId)
+
+    if (error) {
+      console.error('Error fetching inventory products:', error)
+      return 0
+    }
+
+    return (
+      data?.reduce((sum: number, p: any) => {
+        const price = typeof p.price === 'number' ? p.price : parseFloat(p.price || 0)
+        const qty = typeof p.quantity === 'number' ? p.quantity : parseInt(p.quantity || 0)
+        return sum + price * (qty || 0)
+      }, 0) || 0
+    )
+  }
+
   // Función para obtener el total de clientes
   const getTotalCustomers = async (userId: string): Promise<number> => {
     const { count, error } = await supabase
@@ -172,7 +194,8 @@ export default function StatsCards() {
         dollarRate,
         totalProducts,
         totalCustomers,
-        totalPendingCredits
+        totalPendingCredits,
+        inventoryValue
       ] = await Promise.all([
         getMonthlySales(userId),
         getDailySales(userId),
@@ -180,6 +203,7 @@ export default function StatsCards() {
         getTotalProducts(userId),
         getTotalCustomers(userId),
         getTotalPendingCredits(userId)
+        , getInventoryValue(userId)
       ])
 
       setStats({
@@ -189,6 +213,7 @@ export default function StatsCards() {
         totalProducts,
         totalCustomers,
         totalPendingCredits
+        , inventoryValue
       })
     } catch (error) {
       console.error('Error loading stats:', error)
@@ -316,6 +341,22 @@ export default function StatsCards() {
             </div>
             <p className="text-xs text-muted-foreground">
               Productos en inventario
+            </p>
+          </CardContent>
+        </Card>
+
+        {/* Valor del Inventario */}
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Valor del Inventario (USD)</CardTitle>
+            <DollarSign className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">
+              {loading ? 'Cargando...' : formatCurrency(stats.inventoryValue || 0)}
+            </div>
+            <p className="text-xs text-muted-foreground">
+              Suma de (precio × cantidad) de todos los productos
             </p>
           </CardContent>
         </Card>

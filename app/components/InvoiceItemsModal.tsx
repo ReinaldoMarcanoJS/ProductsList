@@ -13,6 +13,7 @@ interface InvoiceItemsModalProps {
   onClose: () => void
   invoiceItems: InvoiceItem[]
   loading: boolean
+  onDeleteItem?: (itemId: string) => void
 }
 
 // Utility function
@@ -24,7 +25,8 @@ export default function InvoiceItemsModal({
   isOpen, 
   onClose, 
   invoiceItems, 
-  loading 
+  loading,
+  onDeleteItem,
 }: InvoiceItemsModalProps) {
   if (!isOpen) return null
 
@@ -55,12 +57,13 @@ export default function InvoiceItemsModal({
                     <TableHead>Cantidad</TableHead>
                     <TableHead>Precio Unitario</TableHead>
                     <TableHead>Total</TableHead>
+                    <TableHead>Acciones</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
                   {invoiceItems.length === 0 ? (
                     <TableRow>
-                      <TableCell colSpan={5} className="text-center">
+                      <TableCell colSpan={6} className="text-center">
                         No hay productos en esta factura.
                       </TableCell>
                     </TableRow>
@@ -72,6 +75,19 @@ export default function InvoiceItemsModal({
                         <TableCell>{item.quantity}</TableCell>
                         <TableCell>{formatCurrency(item.price)}</TableCell>
                         <TableCell>{formatCurrency(item.total)}</TableCell>
+                        <TableCell>
+                          <button
+                            className="text-sm text-red-600 hover:underline"
+                            onClick={() => {
+                              if (!onDeleteItem) return
+                              if (confirm('¿Eliminar este item de la factura?')) {
+                                onDeleteItem(item.id)
+                              }
+                            }}
+                          >
+                            Eliminar
+                          </button>
+                        </TableCell>
                       </TableRow>
                     ))
                   )}

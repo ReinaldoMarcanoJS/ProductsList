@@ -105,6 +105,37 @@ export default function InvoicePreviewModal({
       return;
     }
 
+    // 3. Actualizar cantidades en inventario: decrementar la cantidad por cada producto vendido
+    for (const p of selectedProducts) {
+      try {
+        const { data: prodData, error: prodError } = await supabase
+          .from("products")
+          .select("quantity")
+          .eq("id", p.id)
+          .single();
+
+        if (prodError) {
+          // No detener todo el proceso si falla una consulta de inventario
+          console.error("Error obteniendo producto:", prodError);
+          continue;
+        }
+
+        const currentQty = (prodData?.quantity as number) || 0;
+        const newQty = Math.max(0, currentQty - p.quantity);
+
+        const { error: updateError } = await supabase
+          .from("products")
+          .update({ quantity: newQty, updatedAt: new Date() })
+          .eq("id", p.id);
+
+        if (updateError) {
+          console.error("Error actualizando cantidad del producto:", updateError);
+        }
+      } catch (error) {
+        console.error("Error actualizando inventario:", error);
+      }
+    }
+
     // 2. Si es crédito, insertar en credits
     if (iscredit === "Credito") {
       const { error: creditError } = await supabase.from("credits").insert([

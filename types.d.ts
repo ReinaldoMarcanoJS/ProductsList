@@ -18,6 +18,7 @@ export type Product = {
     userId?: string;
     code: number
     price: number;
+    quantity?: number;
     createdAt: Date;
     updatedAt: Date;
 };

@@ -114,6 +114,7 @@ export default function ProductList() {
       id: generateRandomNumericId(), // Genera un ID único
       userId,
       code: code,
+      quantity: product.quantity || 0,
       createdAt: new Date(),
       updatedAt: new Date(),
     };
@@ -133,6 +134,7 @@ export default function ProductList() {
           userId: "",
           code: 0,
           price: 0,
+          quantity: 0,
           createdAt: new Date(),
           updatedAt: new Date(),
         });
@@ -222,7 +224,8 @@ export default function ProductList() {
         name: "",
         userId: "",
         code: 0,
-        price: 0,
+          price: 0,
+          quantity: 0,
         createdAt: new Date(),
         updatedAt: new Date(),
       });
@@ -334,6 +337,24 @@ export default function ProductList() {
         }
           }}
         />
+        <Input
+          type="number"
+          placeholder="Cantidad"
+          value={newProduct?.quantity !== undefined ? newProduct.quantity : ""}
+          min={0}
+          onChange={(e) => {
+            const qty = e.target.value === "" ? 0 : parseInt(e.target.value);
+            setNewProduct({
+              ...newProduct,
+              quantity: isNaN(qty) ? 0 : qty,
+              code: newProduct?.code || 0,
+              name: newProduct?.name || "",
+              price: newProduct?.price || 0,
+              createdAt: newProduct?.createdAt || new Date(),
+              updatedAt: newProduct?.updatedAt || new Date(),
+            });
+          }}
+        />
         <Button onClick={(e) => handleSaveClick(e)}>
           <Plus className="mr-2 h-4 w-4" />{" "}
           {editingProduct ? "Actualizar" : "Agregar"}
@@ -346,6 +367,7 @@ export default function ProductList() {
             <TableHead>Nombre del Producto</TableHead>
             <TableHead>Precio (USD)</TableHead>
             <TableHead>Precio (BS)</TableHead>
+            <TableHead>Cantidad</TableHead>
             <TableHead>Acciones</TableHead>
           </TableRow>
         </TableHeader>
@@ -361,7 +383,7 @@ export default function ProductList() {
                   animationFillMode: "both",
                 }}
               >
-                <TableCell>
+                  <TableCell>
                   <div className="h-10 w-16 bg-gray-300 animate-pulse rounded"></div>
                 </TableCell>
                 <TableCell>
@@ -370,9 +392,12 @@ export default function ProductList() {
                 <TableCell>
                   <div className="h-10 w-24 bg-gray-300 animate-pulse rounded"></div>
                 </TableCell>
-                <TableCell>
+                  <TableCell>
                   <div className="h-10 w-20 bg-gray-300 animate-pulse rounded"></div>
                 </TableCell>
+                  <TableCell>
+                    <div className="h-10 w-20 bg-gray-300 animate-pulse rounded"></div>
+                  </TableCell>
               </TableRow>
             ))
           ) : filteredProducts.length > 0 ? (
@@ -387,7 +412,7 @@ export default function ProductList() {
               >
                 {deletingId === product.id ? (
                   <>
-                    <TableCell colSpan={5} className="text-center text-indigo-700 font-semibold animate-pulse">
+                    <TableCell colSpan={6} className="text-center text-indigo-700 font-semibold animate-pulse">
                       Borrando...
                     </TableCell>
                   </>
@@ -399,6 +424,7 @@ export default function ProductList() {
                     <TableCell>
                       Bs. {Math.ceil((product.price * (dolarBcv?.promedio ?? EXCHANGE_RATE)) / 5) * 5}
                     </TableCell>
+                    <TableCell>{product.quantity ?? 0}</TableCell>
                     <TableCell>
                       <Button
                         variant="destructive"

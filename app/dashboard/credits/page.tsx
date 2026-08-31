@@ -239,6 +239,69 @@ export default function CreditList() {
     setInvoiceItemsLoading(false)
   }
 
+  // Eliminar un item de la factura y ajustar el crédito asociado
+  const deleteInvoiceItem = async (itemId: string): Promise<void> => {
+    if (!userId) return
+
+    try {
+      // Obtener el item para conocer invoice_id y total
+      const { data: itemData, error: itemError } = await supabase
+        .from('invoice_items')
+        .select('*')
+        .eq('id', itemId)
+        .single()
+
+      if (itemError || !itemData) {
+        console.error('Error fetching invoice item:', itemError)
+        return
+      }
+
+      const invoiceId = itemData.invoice_id
+      const itemTotal = itemData.total || 0
+
+      // Eliminar el item
+      const { error: deleteError } = await supabase
+        .from('invoice_items')
+        .delete()
+        .eq('id', itemId)
+
+      if (deleteError) {
+        console.error('Error deleting invoice item:', deleteError)
+        return
+      }
+
+      // Ajustar el crédito asociado (por invoice_id)
+      const { data: creditsForInvoice, error: creditsError } = await supabase
+        .from('credits')
+        .select('*')
+        .eq('invoice_id', invoiceId)
+        .eq('user_id', userId)
+
+      if (!creditsError && creditsForInvoice && creditsForInvoice.length > 0) {
+        for (const cred of creditsForInvoice) {
+          const newTotal = (cred.total || 0) - itemTotal
+          const newPending = Math.max(0, (cred.pending_amount || 0) - itemTotal)
+          const { error: updateCredError } = await supabase
+            .from('credits')
+            .update({ total: newTotal, pending_amount: newPending })
+            .eq('id', cred.id)
+
+          if (updateCredError) {
+            console.error('Error updating credit after deleting item:', updateCredError)
+          }
+        }
+      }
+
+      // Refrescar lista de items y créditos
+      await handleViewInvoiceItems(invoiceId)
+      await cleanupZeroCredits(userId)
+      const groupedCredits = await fetchAndGroupCredits(userId)
+      setCredits(groupedCredits)
+    } catch (error) {
+      console.error('Error deleting invoice item:', error)
+    }
+  }
+
   const handlePayment = (credit: Credit): void => {
     setSelectedCredit(credit)
     setPaymentAmount('')
@@ -406,6 +469,7 @@ export default function CreditList() {
         onClose={() => setInvoiceItemsModalOpen(false)}
         invoiceItems={invoiceItems}
         loading={invoiceItemsLoading}
+        onDeleteItem={deleteInvoiceItem}
       />
 
 
