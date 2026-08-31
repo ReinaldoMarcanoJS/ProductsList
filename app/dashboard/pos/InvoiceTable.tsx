@@ -64,11 +64,12 @@ export default function InvoiceTable({
                 <TableCell>
                   <Input
                     type="number"
-                    min="1"
+                    min="0"
+                    step="0.01"
                     className="w-20"
                     value={product.quantity}
                     onChange={(e) =>
-                      onUpdateQuantity(product.id, parseInt(e.target.value) || 0)
+                      onUpdateQuantity(product.id, parseFloat(e.target.value) || 0)
                     }
                   />
                 </TableCell>

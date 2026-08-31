@@ -130,7 +130,7 @@ export default function StatsCards() {
     return (
       data?.reduce((sum: number, p: any) => {
         const price = typeof p.price === 'number' ? p.price : parseFloat(p.price || 0)
-        const qty = typeof p.quantity === 'number' ? p.quantity : parseInt(p.quantity || 0)
+        const qty = typeof p.quantity === 'number' ? p.quantity : parseFloat(p.quantity || 0)
         return sum + price * (qty || 0)
       }, 0) || 0
     )

@@ -342,8 +342,9 @@ export default function ProductList() {
           placeholder="Cantidad"
           value={newProduct?.quantity !== undefined ? newProduct.quantity : ""}
           min={0}
+          step={0.01}
           onChange={(e) => {
-            const qty = e.target.value === "" ? 0 : parseInt(e.target.value);
+            const qty = e.target.value === "" ? 0 : parseFloat(e.target.value);
             setNewProduct({
               ...newProduct,
               quantity: isNaN(qty) ? 0 : qty,
